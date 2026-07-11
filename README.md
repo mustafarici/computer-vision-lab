@@ -2,30 +2,30 @@
 
 An interactive computer vision laboratory built with **Python**, **OpenCV**, and **Streamlit**.
 
-This project is designed to demonstrate fundamental and advanced computer vision techniques through an interactive web interface.
+This project aims to explore fundamental and advanced computer vision techniques through an interactive web application. New features will be added incrementally as the project evolves.
 
 ---
 
 ## ✨ Current Features
 
-- 📤 Upload images
-- 🖼️ Display uploaded images
+- Upload JPG, JPEG, and PNG images
+- Preview uploaded images
+- Interactive Streamlit interface
 
 ---
 
 ## 🚀 Planned Features
 
 - Grayscale Conversion
-- Histogram Visualization
+- Histogram Analysis
 - Image Thresholding
+- Image Filtering
 - Edge Detection (Canny)
 - Morphological Operations
 - Contour Detection
 - Feature Detection
-- Image Filtering
 - Face Detection
 - Object Detection
-- Medical Image Processing
 
 ---
 
@@ -59,19 +59,19 @@ computer-vision-lab/
 
 ## ▶️ Installation
 
-Clone the repository
+Clone the repository:
 
 ```bash
 git clone https://github.com/mustafarici/computer-vision-lab.git
 ```
 
-Install dependencies
+Install the required packages:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Run the application
+Run the application:
 
 ```bash
 streamlit run app.py
@@ -79,18 +79,22 @@ streamlit run app.py
 
 ---
 
-## 📅 Project Roadmap
+## 📅 Development Roadmap
 
 - [x] Project setup
-- [x] Streamlit interface
+- [x] GitHub repository
+- [x] Streamlit application
 - [x] Image upload
 - [ ] Grayscale conversion
-- [ ] Histogram visualization
+- [ ] Histogram analysis
+- [ ] Image thresholding
+- [ ] Image filtering
 - [ ] Edge detection
 - [ ] Morphological operations
-- [ ] Feature extraction
+- [ ] Contour detection
+- [ ] Feature detection
+- [ ] Face detection
 - [ ] Object detection
-- [ ] Medical image processing
 
 ---
 
@@ -98,6 +102,10 @@ streamlit run app.py
 
 **Mustafa Arıcı**
 
-Computational Science and Engineering (M.Sc.)
+M.Sc. Student in Computational Science and Engineering
 
-İzmir Institute of Technology
+Izmir Institute of Technology
+
+---
+
+*This project is actively under development.*
