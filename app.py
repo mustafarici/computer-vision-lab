@@ -30,6 +30,22 @@ if uploaded_file is not None:
         cv2.COLOR_RGB2GRAY
     )
 
+    # Threshold Slider
+    threshold_value = st.slider(
+        "Threshold",
+        min_value=0,
+        max_value=255,
+        value=127
+    )
+
+    # Grayscale görüntüyü binary görüntüye çevir
+    _, binary = cv2.threshold(
+        grayscale,
+        threshold_value,
+        255,
+        cv2.THRESH_BINARY
+    )
+
     # Grayscale histogramını hesapla
     histogram = cv2.calcHist(
         [grayscale],
@@ -39,8 +55,8 @@ if uploaded_file is not None:
         [0, 256]
     )
 
-    # Orijinal ve grayscale görüntüleri yan yana göster
-    col1, col2 = st.columns(2)
+    # Üç görüntüyü yan yana göster
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.subheader("Original Image")
@@ -53,6 +69,13 @@ if uploaded_file is not None:
         st.subheader("Grayscale Image")
         st.image(
             grayscale,
+            use_container_width=True
+        )
+
+    with col3:
+        st.subheader("Binary Image")
+        st.image(
+            binary,
             use_container_width=True
         )
 
