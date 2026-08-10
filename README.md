@@ -11,6 +11,7 @@ This project aims to explore fundamental and advanced computer vision techniques
 - Upload JPG, JPEG, and PNG images
 - Preview uploaded images
 - Interactive Streamlit interface
+- Grayscale image conversion
 
 ---
 
@@ -85,7 +86,7 @@ streamlit run app.py
 - [x] GitHub repository
 - [x] Streamlit application
 - [x] Image upload
-- [ ] Grayscale conversion
+- [x] Grayscale conversion
 - [ ] Histogram analysis
 - [ ] Image thresholding
 - [ ] Image filtering
