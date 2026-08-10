@@ -12,6 +12,7 @@ This project aims to explore fundamental and advanced computer vision techniques
 - Preview uploaded images
 - Interactive Streamlit interface
 - Grayscale image conversion
+- Interactive image thresholding
 
 ---
 
@@ -87,8 +88,8 @@ streamlit run app.py
 - [x] Streamlit application
 - [x] Image upload
 - [x] Grayscale conversion
-- [ ] Histogram analysis
-- [ ] Image thresholding
+- [x] Histogram analysis
+- [x] Image Thresholding
 - [ ] Image filtering
 - [ ] Edge detection
 - [ ] Morphological operations
