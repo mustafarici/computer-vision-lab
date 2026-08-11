@@ -85,6 +85,30 @@ The following features are planned for future development:
 
 ---
 
+## 📅 Development Roadmap
+
+- [x] Project setup
+- [x] GitHub repository
+- [x] Streamlit application
+- [x] Image upload
+- [x] Grayscale conversion
+- [x] Histogram analysis
+- [x] Image thresholding
+- [x] Gaussian blur
+- [x] Canny edge detection
+- [x] Interactive sidebar controls
+- [x] Image navigation
+- [ ] Sobel edge detection
+- [ ] Laplacian edge detection
+- [ ] Morphological operations
+- [ ] Contour detection
+- [ ] RGB / HSV analysis
+- [ ] Feature detection
+- [ ] Face detection
+- [ ] Object detection
+
+---
+
 ## 🛠️ Technologies
 
 - 🐍 **Python**
@@ -111,3 +135,13 @@ computer-vision-lab/
 ├── outputs/
 └── pages/
 ```
+
+---
+
+## 👨‍💻 Author
+
+**Mustafa Arıcı**
+M.Sc. Student in Computational Science and Engineering
+Izmir Institute of Technology
+
+> This project is actively under development.
