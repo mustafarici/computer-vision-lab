@@ -115,6 +115,32 @@ def apply_laplacian(grayscale: np.ndarray, ksize: int) -> np.ndarray:
 
 
 @st.cache_data(show_spinner=False)
+def apply_erosion(binary: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    return cv2.erode(binary, kernel, iterations=iterations)
+
+
+@st.cache_data(show_spinner=False)
+def apply_dilation(binary: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    return cv2.dilate(binary, kernel, iterations=iterations)
+
+
+@st.cache_data(show_spinner=False)
+def apply_opening(binary: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+    """Erosion followed by dilation — removes small noise/specks."""
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    return cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=iterations)
+
+
+@st.cache_data(show_spinner=False)
+def apply_closing(binary: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+    """Dilation followed by erosion — closes small holes/gaps."""
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    return cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=iterations)
+
+
+@st.cache_data(show_spinner=False)
 def compute_histogram(grayscale: np.ndarray) -> np.ndarray:
     return cv2.calcHist([grayscale], [0], None, [256], [0, 256])
 
@@ -304,6 +330,38 @@ if uploaded_file is not None:
 
 
         # --------------------------------------------------
+        # MORPHOLOGICAL OPERATIONS
+        # --------------------------------------------------
+
+        st.subheader("Morphological Operations")
+
+        st.caption("Applied on top of the binary (thresholded) image.")
+
+        morph_kernel_size = st.slider(
+            "Structuring Element Size",
+            min_value=1,
+            max_value=15,
+            value=5,
+            step=2,
+            help=(
+                "Size of the structuring element (kernel) "
+                "used for erosion, dilation, opening and closing."
+            )
+        )
+
+        morph_iterations = st.slider(
+            "Iterations",
+            min_value=1,
+            max_value=5,
+            value=1,
+            help="How many times the operation is applied in a row."
+        )
+
+
+        st.divider()
+
+
+        # --------------------------------------------------
         # IMAGE INFORMATION
         # --------------------------------------------------
 
@@ -323,6 +381,10 @@ if uploaded_file is not None:
     edges = apply_canny(blurred, lower_threshold, upper_threshold)
     sobel = apply_sobel(grayscale, sobel_kernel_size)
     laplacian = apply_laplacian(grayscale, laplacian_kernel_size)
+    erosion = apply_erosion(binary, morph_kernel_size, morph_iterations)
+    dilation = apply_dilation(binary, morph_kernel_size, morph_iterations)
+    opening = apply_opening(binary, morph_kernel_size, morph_iterations)
+    closing = apply_closing(binary, morph_kernel_size, morph_iterations)
     histogram = compute_histogram(grayscale)
     histogram_figure = build_histogram_figure(histogram)
 
@@ -339,6 +401,10 @@ if uploaded_file is not None:
         ("Canny Edge Detection", edges),
         ("Sobel Edge Detection", sobel),
         ("Laplacian Edge Detection", laplacian),
+        ("Erosion", erosion),
+        ("Dilation", dilation),
+        ("Opening", opening),
+        ("Closing", closing),
         ("Grayscale Histogram", histogram_figure)
     ]
 
