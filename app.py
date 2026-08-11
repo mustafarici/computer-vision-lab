@@ -1,10 +1,20 @@
-import io
-
 import streamlit as st
-from PIL import Image
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
+
+from modules.io_utils import load_image
+from modules.basic_ops import (
+    convert_to_grayscale,
+    apply_threshold,
+    apply_gaussian_blur,
+)
+from modules.edges import apply_canny, apply_sobel, apply_laplacian
+from modules.morphology import (
+    apply_erosion,
+    apply_dilation,
+    apply_opening,
+    apply_closing,
+)
+from modules.contours import apply_contour_detection
+from modules.histogram import compute_histogram, build_histogram_figure
 
 
 # ==================================================
@@ -18,197 +28,6 @@ st.set_page_config(
 
 st.title("🧪 Computer Vision Lab")
 st.caption("Interactive image processing laboratory")
-
-
-# ==================================================
-# CACHED PROCESSING FUNCTIONS
-#
-# Each step is cached independently so that moving
-# one slider only recomputes the steps that actually
-# depend on it, instead of rerunning the full pipeline
-# on every interaction.
-# ==================================================
-
-@st.cache_data(show_spinner=False)
-def load_image(file_bytes: bytes) -> np.ndarray:
-    """Decode uploaded bytes into a normalized RGB/RGBA/L numpy array."""
-
-    image = Image.open(io.BytesIO(file_bytes))
-
-    # Normalize unusual modes (palette, CMYK, etc.) to RGB so the
-    # rest of the pipeline only ever has to deal with L / RGB / RGBA.
-    if image.mode not in ("RGB", "RGBA", "L"):
-        image = image.convert("RGB")
-
-    return np.array(image)
-
-
-@st.cache_data(show_spinner=False)
-def convert_to_grayscale(image_np: np.ndarray) -> np.ndarray:
-    """Convert an L / RGB / RGBA image to single-channel grayscale."""
-
-    if image_np.ndim == 2:
-        return image_np
-
-    channels = image_np.shape[2]
-
-    if channels == 4:
-        return cv2.cvtColor(image_np, cv2.COLOR_RGBA2GRAY)
-
-    if channels == 3:
-        return cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
-
-    # Fallback for unexpected channel counts.
-    return image_np[:, :, 0]
-
-
-@st.cache_data(show_spinner=False)
-def apply_threshold(grayscale: np.ndarray, threshold_value: int) -> np.ndarray:
-    _, binary = cv2.threshold(
-        grayscale,
-        threshold_value,
-        255,
-        cv2.THRESH_BINARY
-    )
-    return binary
-
-
-@st.cache_data(show_spinner=False)
-def apply_gaussian_blur(grayscale: np.ndarray, kernel_size: int) -> np.ndarray:
-    return cv2.GaussianBlur(
-        grayscale,
-        (kernel_size, kernel_size),
-        0
-    )
-
-
-@st.cache_data(show_spinner=False)
-def apply_canny(blurred: np.ndarray, lower: int, upper: int) -> np.ndarray:
-    return cv2.Canny(blurred, lower, upper)
-
-
-@st.cache_data(show_spinner=False)
-def apply_sobel(grayscale: np.ndarray, ksize: int) -> np.ndarray:
-    """Combined Sobel gradient magnitude (x and y), normalized to uint8."""
-
-    sobel_x = cv2.Sobel(grayscale, cv2.CV_64F, 1, 0, ksize=ksize)
-    sobel_y = cv2.Sobel(grayscale, cv2.CV_64F, 0, 1, ksize=ksize)
-
-    magnitude = cv2.magnitude(sobel_x, sobel_y)
-
-    return cv2.normalize(
-        magnitude,
-        None,
-        0,
-        255,
-        cv2.NORM_MINMAX
-    ).astype(np.uint8)
-
-
-@st.cache_data(show_spinner=False)
-def apply_laplacian(grayscale: np.ndarray, ksize: int) -> np.ndarray:
-    """Laplacian edge response, absolute value and normalized to uint8."""
-
-    laplacian = cv2.Laplacian(grayscale, cv2.CV_64F, ksize=ksize)
-
-    return cv2.convertScaleAbs(laplacian)
-
-
-@st.cache_data(show_spinner=False)
-def apply_erosion(binary: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
-    return cv2.erode(binary, kernel, iterations=iterations)
-
-
-@st.cache_data(show_spinner=False)
-def apply_dilation(binary: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
-    return cv2.dilate(binary, kernel, iterations=iterations)
-
-
-@st.cache_data(show_spinner=False)
-def apply_opening(binary: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
-    """Erosion followed by dilation — removes small noise/specks."""
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
-    return cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=iterations)
-
-
-@st.cache_data(show_spinner=False)
-def apply_closing(binary: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
-    """Dilation followed by erosion — closes small holes/gaps."""
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
-    return cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=iterations)
-
-
-_CONTOUR_RETRIEVAL_MODES = {
-    "External": cv2.RETR_EXTERNAL,
-    "List": cv2.RETR_LIST,
-    "Tree": cv2.RETR_TREE,
-    "CComp": cv2.RETR_CCOMP,
-}
-
-_CONTOUR_APPROX_METHODS = {
-    "Simple": cv2.CHAIN_APPROX_SIMPLE,
-    "None": cv2.CHAIN_APPROX_NONE,
-}
-
-
-@st.cache_data(show_spinner=False)
-def apply_contour_detection(
-    binary: np.ndarray,
-    grayscale: np.ndarray,
-    retrieval_mode: str,
-    approx_method: str,
-    min_area: int
-):
-    """
-    Find contours on the binary image and draw them on a grayscale
-    canvas. Contours are returned together with the drawn image so
-    both stay in sync and only one value crosses the cache boundary.
-    """
-
-    contours, _ = cv2.findContours(
-        binary,
-        _CONTOUR_RETRIEVAL_MODES[retrieval_mode],
-        _CONTOUR_APPROX_METHODS[approx_method]
-    )
-
-    filtered_contours = [
-        contour
-        for contour in contours
-        if cv2.contourArea(contour) >= min_area
-    ]
-
-    canvas = cv2.cvtColor(grayscale, cv2.COLOR_GRAY2RGB)
-
-    cv2.drawContours(
-        canvas,
-        filtered_contours,
-        contourIdx=-1,
-        color=(0, 255, 0),
-        thickness=2
-    )
-
-    return canvas, len(filtered_contours)
-
-
-@st.cache_data(show_spinner=False)
-def compute_histogram(grayscale: np.ndarray) -> np.ndarray:
-    return cv2.calcHist([grayscale], [0], None, [256], [0, 256])
-
-
-def build_histogram_figure(histogram: np.ndarray):
-    fig, ax = plt.subplots(figsize=(5, 3))
-
-    ax.plot(histogram)
-    ax.set_title("Grayscale Histogram")
-    ax.set_xlabel("Pixel Intensity")
-    ax.set_ylabel("Frequency")
-    ax.set_xlim([0, 256])
-
-    fig.tight_layout()
-
-    return fig
 
 
 # ==================================================
@@ -467,6 +286,11 @@ if uploaded_file is not None:
 
     # ==================================================
     # PROCESSING PIPELINE
+    #
+    # Each step is cached inside its own module, so moving
+    # one slider only recomputes the steps that actually
+    # depend on it, instead of rerunning the full pipeline
+    # on every interaction.
     # ==================================================
 
     grayscale = convert_to_grayscale(image_np)
