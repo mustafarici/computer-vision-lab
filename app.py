@@ -140,6 +140,58 @@ def apply_closing(binary: np.ndarray, kernel_size: int, iterations: int) -> np.n
     return cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=iterations)
 
 
+_CONTOUR_RETRIEVAL_MODES = {
+    "External": cv2.RETR_EXTERNAL,
+    "List": cv2.RETR_LIST,
+    "Tree": cv2.RETR_TREE,
+    "CComp": cv2.RETR_CCOMP,
+}
+
+_CONTOUR_APPROX_METHODS = {
+    "Simple": cv2.CHAIN_APPROX_SIMPLE,
+    "None": cv2.CHAIN_APPROX_NONE,
+}
+
+
+@st.cache_data(show_spinner=False)
+def apply_contour_detection(
+    binary: np.ndarray,
+    grayscale: np.ndarray,
+    retrieval_mode: str,
+    approx_method: str,
+    min_area: int
+):
+    """
+    Find contours on the binary image and draw them on a grayscale
+    canvas. Contours are returned together with the drawn image so
+    both stay in sync and only one value crosses the cache boundary.
+    """
+
+    contours, _ = cv2.findContours(
+        binary,
+        _CONTOUR_RETRIEVAL_MODES[retrieval_mode],
+        _CONTOUR_APPROX_METHODS[approx_method]
+    )
+
+    filtered_contours = [
+        contour
+        for contour in contours
+        if cv2.contourArea(contour) >= min_area
+    ]
+
+    canvas = cv2.cvtColor(grayscale, cv2.COLOR_GRAY2RGB)
+
+    cv2.drawContours(
+        canvas,
+        filtered_contours,
+        contourIdx=-1,
+        color=(0, 255, 0),
+        thickness=2
+    )
+
+    return canvas, len(filtered_contours)
+
+
 @st.cache_data(show_spinner=False)
 def compute_histogram(grayscale: np.ndarray) -> np.ndarray:
     return cv2.calcHist([grayscale], [0], None, [256], [0, 256])
@@ -362,6 +414,48 @@ if uploaded_file is not None:
 
 
         # --------------------------------------------------
+        # CONTOUR DETECTION
+        # --------------------------------------------------
+
+        st.subheader("Contour Detection")
+
+        st.caption("Applied on top of the binary (thresholded) image.")
+
+        contour_retrieval_mode = st.selectbox(
+            "Retrieval Mode",
+            options=["External", "List", "Tree", "CComp"],
+            index=0,
+            help=(
+                "External: only outermost contours. "
+                "List: all contours, no hierarchy. "
+                "Tree/CComp: full or two-level nesting hierarchy."
+            )
+        )
+
+        contour_approx_method = st.selectbox(
+            "Approximation Method",
+            options=["Simple", "None"],
+            index=0,
+            help=(
+                "Simple compresses straight segments to their "
+                "endpoints. None keeps every contour point."
+            )
+        )
+
+        min_contour_area = st.slider(
+            "Minimum Contour Area",
+            min_value=0,
+            max_value=5000,
+            value=50,
+            step=10,
+            help="Filters out tiny contours likely caused by noise."
+        )
+
+
+        st.divider()
+
+
+        # --------------------------------------------------
         # IMAGE INFORMATION
         # --------------------------------------------------
 
@@ -385,6 +479,13 @@ if uploaded_file is not None:
     dilation = apply_dilation(binary, morph_kernel_size, morph_iterations)
     opening = apply_opening(binary, morph_kernel_size, morph_iterations)
     closing = apply_closing(binary, morph_kernel_size, morph_iterations)
+    contour_image, contour_count = apply_contour_detection(
+        binary,
+        grayscale,
+        contour_retrieval_mode,
+        contour_approx_method,
+        min_contour_area
+    )
     histogram = compute_histogram(grayscale)
     histogram_figure = build_histogram_figure(histogram)
 
@@ -405,6 +506,7 @@ if uploaded_file is not None:
         ("Dilation", dilation),
         ("Opening", opening),
         ("Closing", closing),
+        ("Contour Detection", contour_image),
         ("Grayscale Histogram", histogram_figure)
     ]
 
@@ -446,6 +548,9 @@ if uploaded_file is not None:
         st.pyplot(current_image, use_container_width=False)
     else:
         st.image(current_image, use_container_width=True)
+
+        if current_title == "Contour Detection":
+            st.caption(f"Found **{contour_count}** contours after the area filter.")
 
 
     # ==================================================

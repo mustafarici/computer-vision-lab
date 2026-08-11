@@ -67,12 +67,6 @@ Each parameter can be adjusted dynamically and the result is updated immediately
 
 The following features are planned for future development:
 
-- Morphological Operations
-  - Erosion
-  - Dilation
-  - Opening
-  - Closing
-- Contour Detection
 - RGB Channel Analysis
 - HSV Color Space Analysis
 - Color Thresholding
@@ -98,8 +92,8 @@ The following features are planned for future development:
 - [x] Image navigation
 - [x] Sobel edge detection
 - [x] Laplacian edge detection
-- [ ] Morphological operations
-- [ ] Contour detection
+- [x] Morphological operations
+- [x] Contour detection
 - [ ] RGB / HSV analysis
 - [ ] Feature detection
 - [ ] Face detection
