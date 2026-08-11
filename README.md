@@ -59,3 +59,53 @@ Each parameter can be adjusted dynamically and the result is updated immediately
           │
           ▼
    Grayscale Histogram
+
+   ---
+
+## 🚀 Planned Features
+
+The following features are planned for future development:
+
+- Sobel Edge Detection
+- Laplacian Edge Detection
+- Morphological Operations
+  - Erosion
+  - Dilation
+  - Opening
+  - Closing
+- Contour Detection
+- RGB Channel Analysis
+- HSV Color Space Analysis
+- Color Thresholding
+- Feature Detection
+- Face Detection
+- Object Detection
+- Additional Image Filtering Techniques
+
+---
+
+## 🛠️ Technologies
+
+- 🐍 **Python**
+- 👁️ **OpenCV**
+- 🌐 **Streamlit**
+- 🔢 **NumPy**
+- 🖼️ **Pillow**
+- 📊 **Matplotlib**
+
+---
+
+## 📂 Project Structure
+
+```text
+computer-vision-lab/
+│
+├── app.py
+├── requirements.txt
+├── README.md
+├── .gitignore
+│
+├── images/
+├── modules/
+├── outputs/
+└── pages/
