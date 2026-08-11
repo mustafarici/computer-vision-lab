@@ -411,17 +411,22 @@ if uploaded_file is not None:
 
     # ==================================================
     # NAVIGATION STATE
+    #
+    # Stored by title (not index) so that the Previous/Next
+    # buttons and the stage selectbox below can share the
+    # exact same session_state key without fighting each
+    # other for control.
     # ==================================================
 
-    if "image_index" not in st.session_state:
-        st.session_state.image_index = 0
+    titles = [title for title, _ in images]
 
-    current_index = st.session_state.image_index
+    if (
+        "current_stage" not in st.session_state
+        or st.session_state.current_stage not in titles
+    ):
+        st.session_state.current_stage = titles[0]
 
-    if current_index < 0 or current_index >= len(images):
-        current_index = 0
-        st.session_state.image_index = 0
-
+    current_index = titles.index(st.session_state.current_stage)
     current_title, current_image = images[current_index]
 
 
@@ -444,7 +449,7 @@ if uploaded_file is not None:
 
 
     # ==================================================
-    # PREVIOUS / NEXT
+    # PREVIOUS / NEXT / JUMP TO STAGE
     # ==================================================
 
     st.write("")
@@ -453,14 +458,14 @@ if uploaded_file is not None:
 
     with previous_col:
         if st.button("← Previous", key="previous_button", use_container_width=True):
-            st.session_state.image_index = (current_index - 1) % len(images)
+            st.session_state.current_stage = titles[(current_index - 1) % len(titles)]
             st.rerun()
 
     with counter_col:
         st.markdown(
             f"""
             <div style="text-align: center; padding-top: 8px; font-size: 14px;">
-                <b>{current_index + 1} / {len(images)}</b>
+                <b>{current_index + 1} / {len(titles)}</b>
             </div>
             """,
             unsafe_allow_html=True
@@ -468,54 +473,16 @@ if uploaded_file is not None:
 
     with next_col:
         if st.button("Next →", key="next_button", use_container_width=True):
-            st.session_state.image_index = (current_index + 1) % len(images)
+            st.session_state.current_stage = titles[(current_index + 1) % len(titles)]
             st.rerun()
-
-
-    # ==================================================
-    # CAROUSEL INDICATORS
-    # ==================================================
 
     st.write("")
 
-    st.markdown(
-        """
-        <style>
-        .carousel-wrapper {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 5px;
-            height: 25px;
-        }
-        .carousel-dot {
-            font-size: 14px;
-            cursor: pointer;
-            text-decoration: none;
-            line-height: 1;
-        }
-        .carousel-dot:hover {
-            transform: scale(1.2);
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
+    st.selectbox(
+        "📍 Jump to a specific stage",
+        options=titles,
+        key="current_stage"
     )
-
-    indicator_columns = st.columns(
-        [0.01] * len(images),
-        gap=None
-    )
-
-    dot_names = [title for title, _ in images]
-
-    for i in range(len(images)):
-        with indicator_columns[i]:
-            symbol = "●" if i == current_index else "○"
-
-            if st.button(symbol, key=f"carousel_dot_{i}", help=dot_names[i]):
-                st.session_state.image_index = i
-                st.rerun()
 
 else:
     st.info("👆 Upload a JPG or PNG image to get started.")
