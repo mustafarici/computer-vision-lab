@@ -88,6 +88,33 @@ def apply_canny(blurred: np.ndarray, lower: int, upper: int) -> np.ndarray:
 
 
 @st.cache_data(show_spinner=False)
+def apply_sobel(grayscale: np.ndarray, ksize: int) -> np.ndarray:
+    """Combined Sobel gradient magnitude (x and y), normalized to uint8."""
+
+    sobel_x = cv2.Sobel(grayscale, cv2.CV_64F, 1, 0, ksize=ksize)
+    sobel_y = cv2.Sobel(grayscale, cv2.CV_64F, 0, 1, ksize=ksize)
+
+    magnitude = cv2.magnitude(sobel_x, sobel_y)
+
+    return cv2.normalize(
+        magnitude,
+        None,
+        0,
+        255,
+        cv2.NORM_MINMAX
+    ).astype(np.uint8)
+
+
+@st.cache_data(show_spinner=False)
+def apply_laplacian(grayscale: np.ndarray, ksize: int) -> np.ndarray:
+    """Laplacian edge response, absolute value and normalized to uint8."""
+
+    laplacian = cv2.Laplacian(grayscale, cv2.CV_64F, ksize=ksize)
+
+    return cv2.convertScaleAbs(laplacian)
+
+
+@st.cache_data(show_spinner=False)
 def compute_histogram(grayscale: np.ndarray) -> np.ndarray:
     return cv2.calcHist([grayscale], [0], None, [256], [0, 256])
 
@@ -233,6 +260,50 @@ if uploaded_file is not None:
 
 
         # --------------------------------------------------
+        # SOBEL EDGE DETECTION
+        # --------------------------------------------------
+
+        st.subheader("Sobel Edge Detection")
+
+        sobel_kernel_size = st.slider(
+            "Sobel Kernel Size",
+            min_value=1,
+            max_value=7,
+            value=3,
+            step=2,
+            help=(
+                "Size of the Sobel operator. Larger values "
+                "detect broader, less noisy gradients."
+            )
+        )
+
+
+        st.divider()
+
+
+        # --------------------------------------------------
+        # LAPLACIAN EDGE DETECTION
+        # --------------------------------------------------
+
+        st.subheader("Laplacian Edge Detection")
+
+        laplacian_kernel_size = st.slider(
+            "Laplacian Kernel Size",
+            min_value=1,
+            max_value=7,
+            value=3,
+            step=2,
+            help=(
+                "Aperture size for the Laplacian operator. "
+                "Larger values are more sensitive to noise."
+            )
+        )
+
+
+        st.divider()
+
+
+        # --------------------------------------------------
         # IMAGE INFORMATION
         # --------------------------------------------------
 
@@ -250,6 +321,8 @@ if uploaded_file is not None:
     binary = apply_threshold(grayscale, threshold_value)
     blurred = apply_gaussian_blur(grayscale, kernel_size)
     edges = apply_canny(blurred, lower_threshold, upper_threshold)
+    sobel = apply_sobel(grayscale, sobel_kernel_size)
+    laplacian = apply_laplacian(grayscale, laplacian_kernel_size)
     histogram = compute_histogram(grayscale)
     histogram_figure = build_histogram_figure(histogram)
 
@@ -264,6 +337,8 @@ if uploaded_file is not None:
         ("Binary Image", binary),
         ("Gaussian Blur", blurred),
         ("Canny Edge Detection", edges),
+        ("Sobel Edge Detection", sobel),
+        ("Laplacian Edge Detection", laplacian),
         ("Grayscale Histogram", histogram_figure)
     ]
 
@@ -362,7 +437,7 @@ if uploaded_file is not None:
     )
 
     indicator_columns = st.columns(
-        [0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+        [0.01] * len(images),
         gap=None
     )
 
