@@ -1,113 +1,42 @@
 # 🧪 Computer Vision Lab
 
-An interactive computer vision laboratory built with **Python**, **OpenCV**, and **Streamlit**.
+An interactive image processing laboratory built with Python, OpenCV, NumPy, Matplotlib, Pillow, and Streamlit.
 
-This project aims to explore fundamental and advanced computer vision techniques through an interactive web application. New features will be added incrementally as the project evolves.
+## 🚀 Features
 
----
+- Image upload (PNG, JPG, JPEG)
+- Grayscale conversion
+- Binary thresholding
+- Gaussian Blur
+- Canny Edge Detection
+- Grayscale Histogram
+- Interactive image processing controls
+- Image resolution and channel information
+- Previous / Next navigation
+- Interactive carousel navigation
+- Hover tooltips for processing stages
 
-## ✨ Current Features
+## 🎛️ Interactive Controls
 
-- Upload JPG, JPEG, and PNG images
-- Preview uploaded images
-- Interactive Streamlit interface
-- Grayscale image conversion
-- Interactive image thresholding
+The sidebar provides controls for:
 
----
+- **Threshold Value**
+- **Gaussian Blur Kernel Size**
+- **Canny Lower Threshold**
+- **Canny Upper Threshold**
 
-## 🚀 Planned Features
-
-- Grayscale Conversion
-- Histogram Analysis
-- Image Thresholding
-- Image Filtering
-- Edge Detection (Canny)
-- Morphological Operations
-- Contour Detection
-- Feature Detection
-- Face Detection
-- Object Detection
-
----
-
-## 🛠 Technologies
+## 🛠️ Technologies
 
 - Python
-- OpenCV
 - Streamlit
+- OpenCV
 - NumPy
 - Pillow
+- Matplotlib
 
----
-
-## 📂 Project Structure
-
-```text
-computer-vision-lab/
-│
-├── app.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-│
-├── images/
-├── modules/
-├── outputs/
-└── pages/
-```
-
----
-
-## ▶️ Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/mustafarici/computer-vision-lab.git
-```
+## ▶️ Run the Application
 
 Install the required packages:
 
 ```bash
 pip install -r requirements.txt
-```
-
-Run the application:
-
-```bash
-streamlit run app.py
-```
-
----
-
-## 📅 Development Roadmap
-
-- [x] Project setup
-- [x] GitHub repository
-- [x] Streamlit application
-- [x] Image upload
-- [x] Grayscale conversion
-- [x] Histogram analysis
-- [x] Image Thresholding
-- [ ] Image filtering
-- [ ] Edge detection
-- [ ] Morphological operations
-- [ ] Contour detection
-- [ ] Feature detection
-- [ ] Face detection
-- [ ] Object detection
-
----
-
-## 👨‍💻 Author
-
-**Mustafa Arıcı**
-
-M.Sc. Student in Computational Science and Engineering
-
-Izmir Institute of Technology
-
----
-
-*This project is actively under development.*
