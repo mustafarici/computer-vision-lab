@@ -21,6 +21,10 @@ This project is designed to explore fundamental computer vision and image proces
 - Binary Image Thresholding
 - Gaussian Blur
 - Canny Edge Detection
+- Sobel Edge Detection
+- Laplacian Edge Detection
+- Morphological Operations (Erosion, Dilation, Opening, Closing)
+- Contour Detection
 - Grayscale Histogram Analysis
 
 ### 🎛️ Interactive Controls
@@ -29,16 +33,20 @@ The application provides interactive controls through the sidebar:
 
 - **Threshold Value**
 - **Gaussian Blur Kernel Size**
-- **Canny Lower Threshold**
-- **Canny Upper Threshold**
+- **Canny Lower / Upper Threshold**
+- **Sobel Kernel Size**
+- **Laplacian Kernel Size**
+- **Morphological Structuring Element Size & Iterations**
+- **Contour Retrieval Mode & Approximation Method**
+- **Minimum Contour Area**
 
 Each parameter can be adjusted dynamically and the result is updated immediately.
 
 ### 🧭 Image Navigation
 
 - Previous / Next navigation
-- Interactive processing-stage indicators
-- Hover tooltips for each processing stage
+- "Jump to a specific stage" dropdown for direct access to any processing step
+- Live stage counter (e.g. `4 / 13`)
 - Individual visualization of each processing result
 
 ---
@@ -46,19 +54,28 @@ Each parameter can be adjusted dynamically and the result is updated immediately
 ## 🔬 Current Processing Pipeline
 
 ```text
-                    Input Image
-                         │
-          ┌──────────────┼──────────────┐
-          │              │              │
-          ▼              ▼              ▼
-      Grayscale      Thresholding   Gaussian Blur
-          │                             │
-          │                             ▼
-          │                       Canny Edge
-          │                       Detection
-          │
-          ▼
-   Grayscale Histogram
+                                 Input Image
+                                      │
+                                 Grayscale
+                                      │
+        ┌───────────┬───────────┬────┴─────┬────────────┬────────────┐
+        │           │           │          │            │            │
+        ▼           ▼           ▼          ▼            ▼            ▼
+    Threshold    Gaussian     Sobel     Laplacian    Histogram    (feeds
+        │          Blur                                           binary
+        │           │                                            branch)
+        │           ▼
+        │        Canny Edge
+        │        Detection
+        ▼
+   Binary Image
+        │
+        ├────────────┬─────────────┬─────────────┐
+        ▼            ▼             ▼             ▼
+    Erosion      Dilation       Opening       Closing
+        │
+        ▼
+   Contour Detection
 ```
 
 ---
@@ -124,6 +141,13 @@ computer-vision-lab/
 │
 ├── images/
 ├── modules/
+│   ├── __init__.py
+│   ├── io_utils.py
+│   ├── basic_ops.py
+│   ├── edges.py
+│   ├── morphology.py
+│   ├── contours.py
+│   └── histogram.py
 ├── outputs/
 └── pages/
 ```
