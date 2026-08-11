@@ -40,3 +40,21 @@ Install the required packages:
 
 ```bash
 pip install -r requirements.txt
+
+🚀 Planned Features
+- The following features are planned for future development:
+- Sobel Edge Detection
+- Laplacian Edge Detection
+- Morphological Operations
+- Erosion
+- Dilation
+- Opening
+- Closing
+- Contour Detection
+- RGB Channel Analysis
+- HSV Color Space Analysis
+- Color Thresholding
+- Feature Detection
+- Face Detection
+- Object Detection
+- Additional image filtering techniques
