@@ -1,60 +1,61 @@
 # 🧪 Computer Vision Lab
 
-An interactive image processing laboratory built with Python, OpenCV, NumPy, Matplotlib, Pillow, and Streamlit.
+An interactive computer vision and image processing laboratory built with **Python**, **OpenCV**, **NumPy**, **Pillow**, **Matplotlib**, and **Streamlit**.
 
-## 🚀 Features
+This project is designed to explore fundamental computer vision and image processing techniques through an interactive web application. New algorithms and processing methods will be added incrementally as the project evolves.
 
-- Image upload (PNG, JPG, JPEG)
-- Grayscale conversion
-- Binary thresholding
+---
+
+## ✨ Current Features
+
+### 📷 Image Input
+
+- Upload JPG, JPEG, and PNG images
+- Preserve the original image resolution
+- Display image resolution and channel information
+- Interactive image preview
+
+### 🖼️ Image Processing
+
+- Grayscale Conversion
+- Binary Image Thresholding
 - Gaussian Blur
 - Canny Edge Detection
-- Grayscale Histogram
-- Interactive image processing controls
-- Image resolution and channel information
-- Previous / Next navigation
-- Interactive carousel navigation
-- Hover tooltips for processing stages
+- Grayscale Histogram Analysis
 
-## 🎛️ Interactive Controls
+### 🎛️ Interactive Controls
 
-The sidebar provides controls for:
+The application provides interactive controls through the sidebar:
 
 - **Threshold Value**
 - **Gaussian Blur Kernel Size**
 - **Canny Lower Threshold**
 - **Canny Upper Threshold**
 
-## 🛠️ Technologies
+Each parameter can be adjusted dynamically and the result is updated immediately.
 
-- Python
-- Streamlit
-- OpenCV
-- NumPy
-- Pillow
-- Matplotlib
+### 🧭 Image Navigation
 
-## ▶️ Run the Application
+- Previous / Next navigation
+- Interactive processing-stage indicators
+- Hover tooltips for each processing stage
+- Individual visualization of each processing result
 
-Install the required packages:
+---
 
-```bash
-pip install -r requirements.txt
+## 🔬 Current Processing Pipeline
 
-🚀 Planned Features
-- The following features are planned for future development:
-- Sobel Edge Detection
-- Laplacian Edge Detection
-- Morphological Operations
-- Erosion
-- Dilation
-- Opening
-- Closing
-- Contour Detection
-- RGB Channel Analysis
-- HSV Color Space Analysis
-- Color Thresholding
-- Feature Detection
-- Face Detection
-- Object Detection
-- Additional image filtering techniques
+```text
+                    Input Image
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+          ▼              ▼              ▼
+      Grayscale      Thresholding   Gaussian Blur
+          │                             │
+          │                             ▼
+          │                       Canny Edge
+          │                       Detection
+          │
+          ▼
+   Grayscale Histogram
