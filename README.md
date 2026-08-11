@@ -67,7 +67,6 @@ Each parameter can be adjusted dynamically and the result is updated immediately
 
 The following features are planned for future development:
 
-- Laplacian Edge Detection
 - Morphological Operations
   - Erosion
   - Dilation
@@ -98,7 +97,7 @@ The following features are planned for future development:
 - [x] Interactive sidebar controls
 - [x] Image navigation
 - [x] Sobel edge detection
-- [ ] Laplacian edge detection
+- [x] Laplacian edge detection
 - [ ] Morphological operations
 - [ ] Contour detection
 - [ ] RGB / HSV analysis
