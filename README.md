@@ -59,8 +59,9 @@ Each parameter can be adjusted dynamically and the result is updated immediately
           │
           ▼
    Grayscale Histogram
+```
 
-   ---
+---
 
 ## 🚀 Planned Features
 
@@ -109,3 +110,4 @@ computer-vision-lab/
 ├── modules/
 ├── outputs/
 └── pages/
+```
