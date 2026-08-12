@@ -15,6 +15,7 @@ from modules.morphology import (
 )
 from modules.contours import apply_contour_detection
 from modules.color_analysis import build_rgb_channel_composite, build_hsv_channel_composite
+from modules.color_threshold import apply_color_threshold
 from modules.histogram import compute_histogram, build_histogram_figure
 
 
@@ -292,6 +293,45 @@ if uploaded_file is not None:
 
 
         # --------------------------------------------------
+        # COLOR THRESHOLDING
+        # --------------------------------------------------
+
+        st.subheader("Color Thresholding")
+
+        st.caption(
+            "Isolates pixels within an HSV range. "
+            "Requires a color (non-grayscale) input image."
+        )
+
+        hue_range = st.slider(
+            "Hue Range",
+            min_value=0,
+            max_value=179,
+            value=(0, 179),
+            help="OpenCV's Hue channel runs from 0 to 179 (not 360)."
+        )
+
+        saturation_range = st.slider(
+            "Saturation Range",
+            min_value=0,
+            max_value=255,
+            value=(0, 255),
+            help="Low values are washed-out/grayish, high values are vivid."
+        )
+
+        value_range = st.slider(
+            "Value (Brightness) Range",
+            min_value=0,
+            max_value=255,
+            value=(0, 255),
+            help="Low values are dark, high values are bright."
+        )
+
+
+        st.divider()
+
+
+        # --------------------------------------------------
         # IMAGE INFORMATION
         # --------------------------------------------------
 
@@ -331,6 +371,12 @@ if uploaded_file is not None:
     histogram_figure = build_histogram_figure(histogram)
     rgb_composite = build_rgb_channel_composite(image_np)
     hsv_composite = build_hsv_channel_composite(image_np)
+    color_mask, color_result = apply_color_threshold(
+        image_np,
+        hue_range,
+        saturation_range,
+        value_range
+    )
 
 
     # ==================================================
@@ -352,6 +398,8 @@ if uploaded_file is not None:
         ("Contour Detection", contour_image),
         ("RGB Channels", rgb_composite),
         ("HSV Channels", hsv_composite),
+        ("Color Mask", color_mask),
+        ("Color Threshold Result", color_result),
         ("Grayscale Histogram", histogram_figure)
     ]
 
@@ -408,6 +456,10 @@ if uploaded_file is not None:
                 "Left to right: **Hue** (colorized), **Saturation**, "
                 "**Value** — each as a separate intensity map."
             )
+        elif current_title == "Color Mask":
+            st.caption("White pixels fall inside the selected HSV range.")
+        elif current_title == "Color Threshold Result":
+            st.caption("Original image with everything outside the HSV range masked out.")
 
 
     # ==================================================
