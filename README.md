@@ -27,6 +27,7 @@ This project is designed to explore fundamental computer vision and image proces
 - Contour Detection
 - RGB Channel Analysis
 - HSV Color Space Analysis
+- HSV Range Color Thresholding
 - Grayscale Histogram Analysis
 
 ### 🎛️ Interactive Controls
@@ -41,6 +42,7 @@ The application provides interactive controls through the sidebar:
 - **Morphological Structuring Element Size & Iterations**
 - **Contour Retrieval Mode & Approximation Method**
 - **Minimum Contour Area**
+- **Color Threshold Hue / Saturation / Value Ranges**
 
 Each parameter can be adjusted dynamically and the result is updated immediately.
 
@@ -50,7 +52,7 @@ RGB/HSV channel analysis runs automatically on any color image and needs no extr
 
 - Previous / Next navigation
 - "Jump to a specific stage" dropdown for direct access to any processing step
-- Live stage counter (e.g. `6 / 15`)
+- Live stage counter (e.g. `8 / 17`)
 - Individual visualization of each processing result
 
 ---
@@ -62,12 +64,12 @@ RGB/HSV channel analysis runs automatically on any color image and needs no extr
                                       │
                           ┌───────────┴───────────┐
                           ▼                        ▼
-                     Grayscale              RGB / HSV Channels
-                          │
-   ┌───────────┬──────────┴┬────────────┬────────────┐
-   │           │           │            │            │
-   ▼           ▼           ▼            ▼            ▼
-Threshold  Gaussian     Sobel      Laplacian    Histogram
+                     Grayscale          RGB / HSV Channels
+                          │                        │
+   ┌───────────┬──────────┴┬────────────┬──────────┴──┐
+   │           │           │            │              ▼
+   ▼           ▼           ▼            ▼        Color Thresholding
+Threshold  Gaussian     Sobel      Laplacian     (Mask + Result)
    │          Blur
    │           │
    │           ▼
@@ -82,6 +84,8 @@ Erosion    Dilation      Opening      Closing
    │
    ▼
 Contour Detection
+
+(Grayscale also feeds the Histogram, in parallel with the above.)
 ```
 
 ---
@@ -90,7 +94,6 @@ Contour Detection
 
 The following features are planned for future development:
 
-- Color Thresholding
 - Feature Detection
 - Face Detection
 - Object Detection
@@ -116,7 +119,7 @@ The following features are planned for future development:
 - [x] Morphological operations
 - [x] Contour detection
 - [x] RGB / HSV analysis
-- [ ] Color thresholding
+- [x] Color thresholding
 - [ ] Feature detection
 - [ ] Face detection
 - [ ] Object detection
@@ -153,6 +156,7 @@ computer-vision-lab/
 │   ├── morphology.py
 │   ├── contours.py
 │   ├── color_analysis.py
+│   ├── color_threshold.py
 │   └── histogram.py
 ├── outputs/
 └── pages/
