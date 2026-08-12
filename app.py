@@ -14,6 +14,7 @@ from modules.morphology import (
     apply_closing,
 )
 from modules.contours import apply_contour_detection
+from modules.color_analysis import build_rgb_channel_composite, build_hsv_channel_composite
 from modules.histogram import compute_histogram, build_histogram_figure
 
 
@@ -275,6 +276,22 @@ if uploaded_file is not None:
 
 
         # --------------------------------------------------
+        # COLOR SPACE ANALYSIS
+        # --------------------------------------------------
+
+        st.subheader("Color Space Analysis")
+
+        st.caption(
+            "Splits the original image into its RGB and HSV "
+            "channels, shown side by side. Requires a color "
+            "(non-grayscale) input image."
+        )
+
+
+        st.divider()
+
+
+        # --------------------------------------------------
         # IMAGE INFORMATION
         # --------------------------------------------------
 
@@ -312,6 +329,8 @@ if uploaded_file is not None:
     )
     histogram = compute_histogram(grayscale)
     histogram_figure = build_histogram_figure(histogram)
+    rgb_composite = build_rgb_channel_composite(image_np)
+    hsv_composite = build_hsv_channel_composite(image_np)
 
 
     # ==================================================
@@ -331,6 +350,8 @@ if uploaded_file is not None:
         ("Opening", opening),
         ("Closing", closing),
         ("Contour Detection", contour_image),
+        ("RGB Channels", rgb_composite),
+        ("HSV Channels", hsv_composite),
         ("Grayscale Histogram", histogram_figure)
     ]
 
@@ -370,11 +391,23 @@ if uploaded_file is not None:
 
     if current_title == "Grayscale Histogram":
         st.pyplot(current_image, use_container_width=False)
+    elif current_image is None:
+        st.info(
+            "This stage needs a color image, but the uploaded "
+            "image only has a single (grayscale) channel."
+        )
     else:
         st.image(current_image, use_container_width=True)
 
         if current_title == "Contour Detection":
             st.caption(f"Found **{contour_count}** contours after the area filter.")
+        elif current_title == "RGB Channels":
+            st.caption("Left to right: **Red**, **Green**, **Blue** channel isolated.")
+        elif current_title == "HSV Channels":
+            st.caption(
+                "Left to right: **Hue** (colorized), **Saturation**, "
+                "**Value** — each as a separate intensity map."
+            )
 
 
     # ==================================================
@@ -415,3 +448,4 @@ if uploaded_file is not None:
 
 else:
     st.info("👆 Upload a JPG or PNG image to get started.")
+    
