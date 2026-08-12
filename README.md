@@ -25,6 +25,8 @@ This project is designed to explore fundamental computer vision and image proces
 - Laplacian Edge Detection
 - Morphological Operations (Erosion, Dilation, Opening, Closing)
 - Contour Detection
+- RGB Channel Analysis
+- HSV Color Space Analysis
 - Grayscale Histogram Analysis
 
 ### 🎛️ Interactive Controls
@@ -42,11 +44,13 @@ The application provides interactive controls through the sidebar:
 
 Each parameter can be adjusted dynamically and the result is updated immediately.
 
+RGB/HSV channel analysis runs automatically on any color image and needs no extra parameters.
+
 ### 🧭 Image Navigation
 
 - Previous / Next navigation
 - "Jump to a specific stage" dropdown for direct access to any processing step
-- Live stage counter (e.g. `4 / 13`)
+- Live stage counter (e.g. `6 / 15`)
 - Individual visualization of each processing result
 
 ---
@@ -56,26 +60,28 @@ Each parameter can be adjusted dynamically and the result is updated immediately
 ```text
                                  Input Image
                                       │
-                                 Grayscale
-                                      │
-        ┌───────────┬───────────┬────┴─────┬────────────┬────────────┐
-        │           │           │          │            │            │
-        ▼           ▼           ▼          ▼            ▼            ▼
-    Threshold    Gaussian     Sobel     Laplacian    Histogram    (feeds
-        │          Blur                                           binary
-        │           │                                            branch)
-        │           ▼
-        │        Canny Edge
-        │        Detection
-        ▼
-   Binary Image
-        │
-        ├────────────┬─────────────┬─────────────┐
-        ▼            ▼             ▼             ▼
-    Erosion      Dilation       Opening       Closing
-        │
-        ▼
-   Contour Detection
+                          ┌───────────┴───────────┐
+                          ▼                        ▼
+                     Grayscale              RGB / HSV Channels
+                          │
+   ┌───────────┬──────────┴┬────────────┬────────────┐
+   │           │           │            │            │
+   ▼           ▼           ▼            ▼            ▼
+Threshold  Gaussian     Sobel      Laplacian    Histogram
+   │          Blur
+   │           │
+   │           ▼
+   │        Canny Edge
+   │        Detection
+   ▼
+Binary Image
+   │
+   ├───────────┬────────────┬────────────┐
+   ▼           ▼            ▼            ▼
+Erosion    Dilation      Opening      Closing
+   │
+   ▼
+Contour Detection
 ```
 
 ---
@@ -84,8 +90,6 @@ Each parameter can be adjusted dynamically and the result is updated immediately
 
 The following features are planned for future development:
 
-- RGB Channel Analysis
-- HSV Color Space Analysis
 - Color Thresholding
 - Feature Detection
 - Face Detection
@@ -111,7 +115,8 @@ The following features are planned for future development:
 - [x] Laplacian edge detection
 - [x] Morphological operations
 - [x] Contour detection
-- [ ] RGB / HSV analysis
+- [x] RGB / HSV analysis
+- [ ] Color thresholding
 - [ ] Feature detection
 - [ ] Face detection
 - [ ] Object detection
@@ -147,6 +152,7 @@ computer-vision-lab/
 │   ├── edges.py
 │   ├── morphology.py
 │   ├── contours.py
+│   ├── color_analysis.py
 │   └── histogram.py
 ├── outputs/
 └── pages/
