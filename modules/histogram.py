@@ -1,4 +1,6 @@
-"""Grayscale histogram computation and plotting."""
+"""Grayscale histogram computation, plotting, and export helpers."""
+
+import io
 
 import cv2
 import matplotlib.pyplot as plt
@@ -23,3 +25,13 @@ def build_histogram_figure(histogram: np.ndarray):
     fig.tight_layout()
 
     return fig
+
+
+def get_figure_download_bytes(fig) -> bytes:
+    """Encode a matplotlib figure as PNG bytes for st.download_button."""
+
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", bbox_inches="tight")
+    buffer.seek(0)
+
+    return buffer.getvalue()

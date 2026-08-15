@@ -19,14 +19,19 @@ from modules.feature_detection import (
     apply_orb_keypoints,
     compute_harris_response,
 )
-from modules.histogram import build_histogram_figure, compute_histogram
-from modules.io_utils import load_image
+from modules.histogram import (
+    build_histogram_figure,
+    compute_histogram,
+    get_figure_download_bytes,
+)
+from modules.io_utils import get_image_download_bytes, load_image
 from modules.morphology import (
     apply_closing,
     apply_dilation,
     apply_erosion,
     apply_opening,
 )
+from modules.object_detection import apply_object_detection, OBJECT_CASCADES
 
 
 # ==================================================
@@ -66,7 +71,7 @@ if uploaded_file is not None:
     # ==================================================
 
     try:
-        image_np = load_image(uploaded_file.getvalue())
+        image_np, resize_info = load_image(uploaded_file.getvalue())
 
     except Exception:
         st.error(
@@ -303,6 +308,21 @@ if uploaded_file is not None:
             ),
             "pipeline": (
                 "Original → Grayscale → Haar Cascade → Bounding Boxes"
+            ),
+            "requires_color": False,
+        },
+
+        "Object Detection": {
+            "category": "Object Detection",
+            "description": (
+                "Detects instances of a selected object class "
+                "(eyes, smiles, full bodies, cat faces, license "
+                "plates) using OpenCV's bundled Haar Cascade "
+                "classifiers."
+            ),
+            "pipeline": (
+                "Original → Grayscale → Haar Cascade (selected class) "
+                "→ Bounding Boxes"
             ),
             "requires_color": False,
         },
@@ -647,6 +667,7 @@ if uploaded_file is not None:
                 max_value=1.50,
                 value=1.10,
                 step=0.05,
+                key="face_scale_factor",
                 help=(
                     "How much the image size is reduced at each "
                     "scale. Smaller values are slower but more "
@@ -659,6 +680,7 @@ if uploaded_file is not None:
                 min_value=1,
                 max_value=10,
                 value=5,
+                key="face_min_neighbors",
                 help=(
                     "How many overlapping detections are required "
                     "to confirm a face. Higher values reduce false "
@@ -672,8 +694,65 @@ if uploaded_file is not None:
                 max_value=200,
                 value=30,
                 step=10,
+                key="face_min_size",
                 help=(
                     "Smallest face size (in pixels) the detector "
+                    "will consider."
+                ),
+            )
+
+
+        # ==================================================
+        # OBJECT DETECTION
+        # ==================================================
+
+        with st.expander("🔎 Object Detection"):
+
+            object_type = st.selectbox(
+                "Object Class",
+                options=list(OBJECT_CASCADES.keys()),
+                help=(
+                    "Which bundled Haar Cascade classifier to run. "
+                    "Not every image will contain the selected class."
+                ),
+            )
+
+            object_scale_factor = st.slider(
+                "Scale Factor",
+                min_value=1.05,
+                max_value=1.50,
+                value=1.10,
+                step=0.05,
+                key="object_scale_factor",
+                help=(
+                    "How much the image size is reduced at each "
+                    "scale. Smaller values are slower but more "
+                    "thorough."
+                ),
+            )
+
+            object_min_neighbors = st.slider(
+                "Minimum Neighbors",
+                min_value=1,
+                max_value=10,
+                value=5,
+                key="object_min_neighbors",
+                help=(
+                    "How many overlapping detections are required "
+                    "to confirm an object. Higher values reduce "
+                    "false positives."
+                ),
+            )
+
+            object_min_size = st.slider(
+                "Minimum Object Size (px)",
+                min_value=10,
+                max_value=200,
+                value=20,
+                step=10,
+                key="object_min_size",
+                help=(
+                    "Smallest object size (in pixels) the detector "
                     "will consider."
                 ),
             )
@@ -699,6 +778,14 @@ if uploaded_file is not None:
 
             else:
                 st.write("**Image Type:** Grayscale")
+
+            if resize_info is not None:
+                st.caption(
+                    f"Original: {resize_info['original_width']}×"
+                    f"{resize_info['original_height']} "
+                    f"(resized to {resize_info['new_width']}×"
+                    f"{resize_info['new_height']} for performance)"
+                )
 
 
     # ==================================================
@@ -808,10 +895,16 @@ if uploaded_file is not None:
                 kernel_size,
             )
 
+            # Guard clause: the sidebar already warns if
+            # lower_threshold > upper_threshold, but cv2.Canny
+            # still needs well-ordered bounds to behave correctly.
+            actual_lower = min(lower_threshold, upper_threshold)
+            actual_upper = max(lower_threshold, upper_threshold)
+
             current_image = apply_canny(
                 blurred,
-                lower_threshold,
-                upper_threshold,
+                actual_lower,
+                actual_upper,
             )
 
             extra_info = (
@@ -1069,6 +1162,30 @@ if uploaded_file is not None:
 
 
         # ==================================================
+        # OBJECT DETECTION
+        # ==================================================
+
+        elif stage == "Object Detection":
+
+            grayscale = convert_to_grayscale(image_np)
+
+            current_image, object_count = apply_object_detection(
+                image_np,
+                grayscale,
+                object_type,
+                object_scale_factor,
+                object_min_neighbors,
+                object_min_size,
+            )
+
+            extra_info = (
+                f"Found **{object_count}** instance(s) of "
+                f"**{object_type}**. Not every image will contain "
+                "this object class."
+            )
+
+
+        # ==================================================
         # HISTOGRAM
         # ==================================================
 
@@ -1120,6 +1237,15 @@ if uploaded_file is not None:
                 width="content",
             )
 
+            histogram_png_bytes = get_figure_download_bytes(current_image)
+
+            st.download_button(
+                "⬇️ Download Histogram (PNG)",
+                data=histogram_png_bytes,
+                file_name="grayscale_histogram.png",
+                mime="image/png",
+            )
+
         elif current_image is None:
 
             st.info(
@@ -1138,6 +1264,18 @@ if uploaded_file is not None:
                 st.caption(
                     extra_info
                 )
+
+            download_filename = (
+                stage.lower().replace(" ", "_").replace("/", "_")
+                + ".png"
+            )
+
+            st.download_button(
+                "⬇️ Download Result (PNG)",
+                data=get_image_download_bytes(current_image),
+                file_name=download_filename,
+                mime="image/png",
+            )
 
 
         # ==================================================
