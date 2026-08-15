@@ -13,6 +13,7 @@ from modules.color_analysis import (
 from modules.color_threshold import apply_color_threshold
 from modules.contours import apply_contour_detection
 from modules.edges import apply_canny, apply_laplacian, apply_sobel
+from modules.face_detection import apply_face_detection
 from modules.feature_detection import (
     apply_harris_corners,
     apply_orb_keypoints,
@@ -291,6 +292,18 @@ if uploaded_file is not None:
                 "ORB feature detector."
             ),
             "pipeline": "Original → Grayscale → ORB",
+            "requires_color": False,
+        },
+
+        "Face Detection": {
+            "category": "Object Detection",
+            "description": (
+                "Detects faces using OpenCV's built-in Haar "
+                "Cascade classifier and marks them with boxes."
+            ),
+            "pipeline": (
+                "Original → Grayscale → Haar Cascade → Bounding Boxes"
+            ),
             "requires_color": False,
         },
 
@@ -618,6 +631,50 @@ if uploaded_file is not None:
                 step=50,
                 help=(
                     "Maximum number of ORB keypoints to detect."
+                ),
+            )
+
+
+        # ==================================================
+        # FACE DETECTION
+        # ==================================================
+
+        with st.expander("😀 Face Detection"):
+
+            face_scale_factor = st.slider(
+                "Scale Factor",
+                min_value=1.05,
+                max_value=1.50,
+                value=1.10,
+                step=0.05,
+                help=(
+                    "How much the image size is reduced at each "
+                    "scale. Smaller values are slower but more "
+                    "thorough."
+                ),
+            )
+
+            face_min_neighbors = st.slider(
+                "Minimum Neighbors",
+                min_value=1,
+                max_value=10,
+                value=5,
+                help=(
+                    "How many overlapping detections are required "
+                    "to confirm a face. Higher values reduce false "
+                    "positives."
+                ),
+            )
+
+            face_min_size = st.slider(
+                "Minimum Face Size (px)",
+                min_value=10,
+                max_value=200,
+                value=30,
+                step=10,
+                help=(
+                    "Smallest face size (in pixels) the detector "
+                    "will consider."
                 ),
             )
 
@@ -985,6 +1042,29 @@ if uploaded_file is not None:
             extra_info = (
                 f"Found **{orb_keypoint_count}** ORB keypoints "
                 "(circle size ≈ feature scale)."
+            )
+
+
+        # ==================================================
+        # FACE DETECTION
+        # ==================================================
+
+        elif stage == "Face Detection":
+
+            grayscale = convert_to_grayscale(image_np)
+
+            current_image, face_count = apply_face_detection(
+                image_np,
+                grayscale,
+                face_scale_factor,
+                face_min_neighbors,
+                face_min_size,
+            )
+
+            extra_info = (
+                f"Found **{face_count}** face(s). "
+                "Haar Cascade works best on frontal, "
+                "well-lit faces."
             )
 
 

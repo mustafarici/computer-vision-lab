@@ -30,6 +30,7 @@ This project is designed to explore fundamental computer vision and image proces
 - HSV Color Space Analysis
 - HSV Range Color Thresholding
 - Feature Detection (Harris Corners, ORB Keypoints)
+- Face Detection (Haar Cascade)
 - Grayscale Histogram Analysis (with mean / median / min / max statistics)
 
 ### 🎛️ Interactive Controls
@@ -42,6 +43,7 @@ Sidebar controls are grouped into collapsible sections by category:
 - **🔲 Contour Detection** — Retrieval Mode, Approximation Method, Minimum Contour Area
 - **🎨 Color Analysis** — Hue / Saturation / Value Ranges (requires a color image)
 - **🔍 Feature Detection** — Harris Block Size, Sobel Aperture, Sensitivity, Response Threshold, ORB Max Keypoints
+- **😀 Face Detection** — Scale Factor, Minimum Neighbors, Minimum Face Size
 - **ℹ️ Image Information** — resolution, channel count, color/grayscale type
 
 Each parameter can be adjusted dynamically and the result is updated immediately. Stages that require a color image (RGB/HSV analysis, color thresholding) show a clear warning instead of an error when a grayscale-only image is uploaded.
@@ -50,13 +52,14 @@ Each parameter can be adjusted dynamically and the result is updated immediately
 
 - Previous / Next navigation
 - "Jump to a specific stage" dropdown for direct access to any processing step
-- Live stage counter (e.g. `8 / 19`)
+- Live stage counter (e.g. `19 / 20`)
 - Each stage displays its category, a short description, and an expandable "Processing Pipeline" breakdown
 
 ### ⚡ Performance
 
 - **Lazy stage evaluation**: only the currently displayed stage is computed on each rerun, instead of the full pipeline — moving one slider no longer recomputes unrelated stages.
-- Expensive operations (Harris response, Gaussian blur, etc.) are cached independently with `@st.cache_data`, so unrelated parameter changes don't trigger recomputation.
+- Expensive operations (Harris response, Gaussian blur, etc.) are cached independently with `@st.cache_data`.
+- Models/resources (the Haar Cascade face detector) are cached with `@st.cache_resource` and loaded only once per session, instead of on every rerun.
 
 ---
 
@@ -74,8 +77,10 @@ Each parameter can be adjusted dynamically and the result is updated immediately
    ▼           ▼          ▼            ▼        Color Thresholding
 Threshold  Gaussian    Sobel       Laplacian    (Mask + Result)
    │          Blur         │
-   │           │           └──► Harris Corners
-   │           ▼                ORB Keypoints
+   │           │           ├──► Harris Corners
+   │           │           ├──► ORB Keypoints
+   │           │           └──► Face Detection (Haar Cascade)
+   │           ▼
    │        Canny Edge
    │        Detection
    ▼
@@ -97,7 +102,6 @@ Contour Detection
 
 The following features are planned for future development:
 
-- Face Detection
 - Object Detection
 - Additional Image Filtering Techniques
 
@@ -123,7 +127,7 @@ The following features are planned for future development:
 - [x] RGB / HSV analysis
 - [x] Color thresholding
 - [x] Feature detection (Harris corners, ORB keypoints)
-- [ ] Face detection
+- [x] Face detection (Haar Cascade)
 - [ ] Object detection
 
 ---
@@ -160,6 +164,7 @@ computer-vision-lab/
 │   ├── color_analysis.py
 │   ├── color_threshold.py
 │   ├── feature_detection.py
+│   ├── face_detection.py
 │   └── histogram.py
 ├── outputs/
 └── pages/
