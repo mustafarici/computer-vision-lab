@@ -13,6 +13,7 @@ This project is designed to explore fundamental computer vision and image proces
 - Upload JPG, JPEG, and PNG images
 - Preserve the original image resolution
 - Display image resolution and channel information
+- Automatic detection of color vs. grayscale-only input
 - Interactive image preview
 
 ### 🖼️ Image Processing
@@ -28,32 +29,34 @@ This project is designed to explore fundamental computer vision and image proces
 - RGB Channel Analysis
 - HSV Color Space Analysis
 - HSV Range Color Thresholding
-- Grayscale Histogram Analysis
+- Feature Detection (Harris Corners, ORB Keypoints)
+- Grayscale Histogram Analysis (with mean / median / min / max statistics)
 
 ### 🎛️ Interactive Controls
 
-The application provides interactive controls through the sidebar:
+Sidebar controls are grouped into collapsible sections by category:
 
-- **Threshold Value**
-- **Gaussian Blur Kernel Size**
-- **Canny Lower / Upper Threshold**
-- **Sobel Kernel Size**
-- **Laplacian Kernel Size**
-- **Morphological Structuring Element Size & Iterations**
-- **Contour Retrieval Mode & Approximation Method**
-- **Minimum Contour Area**
-- **Color Threshold Hue / Saturation / Value Ranges**
+- **🔧 Basic Processing** — Threshold Value, Gaussian Blur Kernel Size
+- **📐 Edge Detection** — Canny Lower/Upper Threshold, Sobel Kernel Size, Laplacian Kernel Size
+- **🧩 Morphological Operations** — Structuring Element Size, Iterations
+- **🔲 Contour Detection** — Retrieval Mode, Approximation Method, Minimum Contour Area
+- **🎨 Color Analysis** — Hue / Saturation / Value Ranges (requires a color image)
+- **🔍 Feature Detection** — Harris Block Size, Sobel Aperture, Sensitivity, Response Threshold, ORB Max Keypoints
+- **ℹ️ Image Information** — resolution, channel count, color/grayscale type
 
-Each parameter can be adjusted dynamically and the result is updated immediately.
-
-RGB/HSV channel analysis runs automatically on any color image and needs no extra parameters.
+Each parameter can be adjusted dynamically and the result is updated immediately. Stages that require a color image (RGB/HSV analysis, color thresholding) show a clear warning instead of an error when a grayscale-only image is uploaded.
 
 ### 🧭 Image Navigation
 
 - Previous / Next navigation
 - "Jump to a specific stage" dropdown for direct access to any processing step
-- Live stage counter (e.g. `8 / 17`)
-- Individual visualization of each processing result
+- Live stage counter (e.g. `8 / 19`)
+- Each stage displays its category, a short description, and an expandable "Processing Pipeline" breakdown
+
+### ⚡ Performance
+
+- **Lazy stage evaluation**: only the currently displayed stage is computed on each rerun, instead of the full pipeline — moving one slider no longer recomputes unrelated stages.
+- Expensive operations (Harris response, Gaussian blur, etc.) are cached independently with `@st.cache_data`, so unrelated parameter changes don't trigger recomputation.
 
 ---
 
@@ -66,13 +69,13 @@ RGB/HSV channel analysis runs automatically on any color image and needs no extr
                           ▼                        ▼
                      Grayscale          RGB / HSV Channels
                           │                        │
-   ┌───────────┬──────────┴┬────────────┬──────────┴──┐
-   │           │           │            │              ▼
-   ▼           ▼           ▼            ▼        Color Thresholding
-Threshold  Gaussian     Sobel      Laplacian     (Mask + Result)
-   │          Blur
-   │           │
-   │           ▼
+   ┌───────────┬──────────┼────────────┬───────────┴──┐
+   │           │          │            │              ▼
+   ▼           ▼          ▼            ▼        Color Thresholding
+Threshold  Gaussian    Sobel       Laplacian    (Mask + Result)
+   │          Blur         │
+   │           │           └──► Harris Corners
+   │           ▼                ORB Keypoints
    │        Canny Edge
    │        Detection
    ▼
@@ -94,7 +97,6 @@ Contour Detection
 
 The following features are planned for future development:
 
-- Feature Detection
 - Face Detection
 - Object Detection
 - Additional Image Filtering Techniques
@@ -120,7 +122,7 @@ The following features are planned for future development:
 - [x] Contour detection
 - [x] RGB / HSV analysis
 - [x] Color thresholding
-- [ ] Feature detection
+- [x] Feature detection (Harris corners, ORB keypoints)
 - [ ] Face detection
 - [ ] Object detection
 
@@ -157,6 +159,7 @@ computer-vision-lab/
 │   ├── contours.py
 │   ├── color_analysis.py
 │   ├── color_threshold.py
+│   ├── feature_detection.py
 │   └── histogram.py
 ├── outputs/
 └── pages/
