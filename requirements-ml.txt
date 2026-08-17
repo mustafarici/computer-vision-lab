@@ -8,6 +8,8 @@
 #
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 #   pip install -r requirements-ml.txt
-
-ultralytics>=8.3
-mediapipe>=0.10.30
+#
+# Capped below the next major/minor release: MediaPipe removed its
+# mp.solutions API in 0.10.30, so its minor versions do break things.
+ultralytics>=8.3,<9
+mediapipe>=0.10.30,<0.11
