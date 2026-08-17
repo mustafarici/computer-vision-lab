@@ -1,11 +1,19 @@
-"""Grayscale conversion, thresholding and blurring."""
+"""Grayscale conversion, thresholding and blurring.
+
+Deliberately NOT cached. @st.cache_data has to hash the full input
+array (~6 MB for a 1920x1080 image) and deep-copy the output on every
+call, which measures at ~1.5-2 ms — more than these operations cost to
+just recompute (0.1-0.6 ms each). Caching them was a net slowdown, and
+it also grew unboundedly: sweeping the 0-255 threshold slider cached a
+separate full-size image per position (~500 MB).
+
+See modules/edges.py for the operations where caching does pay off.
+"""
 
 import cv2
 import numpy as np
-import streamlit as st
 
 
-@st.cache_data(show_spinner=False)
 def convert_to_grayscale(image_np: np.ndarray) -> np.ndarray:
     """Convert an L / RGB / RGBA image to single-channel grayscale."""
 
@@ -24,7 +32,6 @@ def convert_to_grayscale(image_np: np.ndarray) -> np.ndarray:
     return image_np[:, :, 0]
 
 
-@st.cache_data(show_spinner=False)
 def apply_threshold(grayscale: np.ndarray, threshold_value: int) -> np.ndarray:
     _, binary = cv2.threshold(
         grayscale,
@@ -35,7 +42,6 @@ def apply_threshold(grayscale: np.ndarray, threshold_value: int) -> np.ndarray:
     return binary
 
 
-@st.cache_data(show_spinner=False)
 def apply_gaussian_blur(grayscale: np.ndarray, kernel_size: int) -> np.ndarray:
     return cv2.GaussianBlur(
         grayscale,

@@ -5,7 +5,13 @@ import numpy as np
 import streamlit as st
 
 
-@st.cache_data(show_spinner=False)
+# These depend only on the uploaded image (no slider parameters), so
+# a couple of entries covers switching between a few images. Each
+# composite is 3x the input width (~19 MB), so the bound matters.
+MAX_CACHE_ENTRIES = 3
+
+
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def build_rgb_channel_composite(image_np: np.ndarray):
     """
     Isolate the R, G and B channels into three color images
@@ -28,7 +34,7 @@ def build_rgb_channel_composite(image_np: np.ndarray):
     return np.hstack([red_only, green_only, blue_only])
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def build_hsv_channel_composite(image_np: np.ndarray):
     """
     Convert to HSV and lay the H, S and V channels side by side.

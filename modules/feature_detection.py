@@ -5,7 +5,13 @@ import numpy as np
 import streamlit as st
 
 
-@st.cache_data(show_spinner=False)
+# Harris/ORB are the most expensive non-cascade operations here
+# (~28-53 ms), so caching clearly pays off — but it's bounded so
+# dragging a slider doesn't accumulate one full-size result per stop.
+MAX_CACHE_ENTRIES = 8
+
+
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def compute_harris_response(
     grayscale: np.ndarray,
     block_size: int,
@@ -24,7 +30,7 @@ def compute_harris_response(
     return cv2.cornerHarris(gray_float, block_size, ksize, k)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_harris_corners(
     grayscale: np.ndarray,
     harris_response: np.ndarray,
@@ -35,23 +41,23 @@ def apply_harris_corners(
     color version of the grayscale image.
     """
 
-    # 1. Eşik değerini belirle ve maskeyi oluştur
+    # 1. Determine the threshold value and build the mask.
     corner_mask = harris_response > (threshold_ratio * harris_response.max())
 
-    # 2. Görselleştirme için maskeyi hafifçe genişlet (dilasyon)
-    # Eşiklemeden SONRA dilasyon yapmak köşe tespit mantığını bozmaz
+    # 2. Slightly dilate the mask for visualization purposes.
+    # Dilating AFTER thresholding doesn't affect corner-detection logic.
     corner_mask_uint8 = np.uint8(corner_mask) * 255
     corner_mask_dilated = (
         cv2.dilate(corner_mask_uint8, None, iterations=1) > 0
     )
 
     canvas = cv2.cvtColor(grayscale, cv2.COLOR_GRAY2RGB)
-    canvas[corner_mask_dilated] = [255, 0, 0]  # Kırmızı noktalar
+    canvas[corner_mask_dilated] = [255, 0, 0]  # Red dots
 
     return canvas
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_orb_keypoints(grayscale: np.ndarray, n_features: int) -> tuple[np.ndarray, int]:
     """
     Detect ORB keypoints and draw them on a color version of the grayscale
@@ -62,7 +68,8 @@ def apply_orb_keypoints(grayscale: np.ndarray, n_features: int) -> tuple[np.ndar
 
     orb = cv2.ORB_create(nfeatures=n_features)
 
-    # Descriptor (tanımlayıcı) gerekmediği için sadece detect() kullanıyoruz
+    # We only need keypoint locations, not descriptors, so detect()
+    # alone is enough (no need for detectAndCompute()).
     keypoints = orb.detect(grayscale, None)
 
     canvas = cv2.cvtColor(grayscale, cv2.COLOR_GRAY2RGB)

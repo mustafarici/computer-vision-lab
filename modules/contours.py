@@ -17,7 +17,12 @@ APPROX_METHODS = {
 }
 
 
-@st.cache_data(show_spinner=False)
+# Bounded so sweeping the "Minimum Contour Area" slider can't keep a
+# full-size canvas alive for every position it passes through.
+MAX_CACHE_ENTRIES = 8
+
+
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_contour_detection(
     binary: np.ndarray,
     grayscale: np.ndarray,

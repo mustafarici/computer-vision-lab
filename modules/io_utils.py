@@ -1,6 +1,8 @@
 """Image loading, normalization, downsampling, and export helpers."""
 
 import io
+from datetime import datetime
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -12,8 +14,19 @@ from PIL import Image
 # choke on 12-20MP+ photos.
 MAX_DIMENSION = 1920
 
+# Where "save a copy to disk" writes results when running locally
+# (`streamlit run app.py`). Resolved relative to this file so it
+# works regardless of the process's current working directory.
+RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 
-@st.cache_data(show_spinner=False)
+# Bounded caches: decoding and PNG-encoding are expensive enough to be
+# worth caching (~46 ms to encode a 1920x1080 PNG), but each entry
+# holds a full-size image, so old entries are evicted rather than kept
+# forever.
+MAX_CACHE_ENTRIES = 8
+
+
+@st.cache_data(show_spinner=False, max_entries=3)
 def load_image(file_bytes: bytes):
     """
     Decode uploaded bytes into a normalized RGB/RGBA/L numpy array,
@@ -59,7 +72,7 @@ def load_image(file_bytes: bytes):
     return image_np, resize_info
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def get_image_download_bytes(image_np: np.ndarray) -> bytes:
     """
     Encode an RGB/RGBA/grayscale numpy image array as PNG bytes,
@@ -78,3 +91,34 @@ def get_image_download_bytes(image_np: np.ndarray) -> bytes:
         raise RuntimeError("Failed to encode image to PNG.")
 
     return buffer.tobytes()
+
+
+def save_result_locally(
+    image_bytes: bytes,
+    filename: str,
+    results_dir: Path = RESULTS_DIR,
+) -> Path:
+    """
+    Write already-encoded image bytes (PNG) to the local results/
+    folder, timestamping the filename so repeated saves of the same
+    stage don't overwrite each other.
+
+    This is a convenience for local runs — not cached, since it's a
+    side effect rather than a pure computation. Deployed/cloud
+    environments (e.g. Streamlit Community Cloud) typically have an
+    ephemeral filesystem, so this complements the in-browser download
+    button rather than replacing it.
+
+    Returns the path the file was written to.
+    """
+
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stem = Path(filename).stem
+    suffix = Path(filename).suffix or ".png"
+
+    output_path = results_dir / f"{timestamp}_{stem}{suffix}"
+    output_path.write_bytes(image_bytes)
+
+    return output_path
