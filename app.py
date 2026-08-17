@@ -1,37 +1,15 @@
 import numpy as np
 import streamlit as st
 
-from modules.basic_ops import (
-    apply_gaussian_blur,
-    apply_threshold,
-    convert_to_grayscale,
+from modules.basic_ops import convert_to_grayscale
+from modules.histogram import get_figure_download_bytes
+from modules.io_utils import (
+    get_image_download_bytes,
+    load_image,
+    save_result_locally,
 )
-from modules.color_analysis import (
-    build_hsv_channel_composite,
-    build_rgb_channel_composite,
-)
-from modules.color_threshold import apply_color_threshold
-from modules.contours import apply_contour_detection
-from modules.edges import apply_canny, apply_laplacian, apply_sobel
-from modules.face_detection import apply_face_detection
-from modules.feature_detection import (
-    apply_harris_corners,
-    apply_orb_keypoints,
-    compute_harris_response,
-)
-from modules.histogram import (
-    build_histogram_figure,
-    compute_histogram,
-    get_figure_download_bytes,
-)
-from modules.io_utils import get_image_download_bytes, load_image
-from modules.morphology import (
-    apply_closing,
-    apply_dilation,
-    apply_erosion,
-    apply_opening,
-)
-from modules.object_detection import apply_object_detection, OBJECT_CASCADES
+from modules.object_detection import OBJECT_CASCADES
+from modules.stages import STAGES
 
 
 # ==================================================
@@ -100,248 +78,13 @@ if uploaded_file is not None:
 
 
     # ==================================================
-    # STAGE DEFINITIONS
-    # ==================================================
-
-    STAGES = {
-        "Original Image": {
-            "category": "Basic Processing",
-            "description": (
-                "Displays the original uploaded image without "
-                "any image processing."
-            ),
-            "pipeline": "Input image",
-            "requires_color": False,
-        },
-
-        "Grayscale Image": {
-            "category": "Basic Processing",
-            "description": (
-                "Converts the input image from RGB/BGR color "
-                "representation to a single grayscale channel."
-            ),
-            "pipeline": "Original → Grayscale",
-            "requires_color": False,
-        },
-
-        "Binary Image": {
-            "category": "Basic Processing",
-            "description": (
-                "Converts the grayscale image into a binary "
-                "black-and-white image using a threshold value."
-            ),
-            "pipeline": "Original → Grayscale → Threshold",
-            "requires_color": False,
-        },
-
-        "Gaussian Blur": {
-            "category": "Basic Processing",
-            "description": (
-                "Applies Gaussian smoothing to reduce image noise "
-                "and high-frequency details."
-            ),
-            "pipeline": "Original → Grayscale → Gaussian Blur",
-            "requires_color": False,
-        },
-
-        "Canny Edge Detection": {
-            "category": "Edge Detection",
-            "description": (
-                "Detects edges using the Canny edge detection "
-                "algorithm after Gaussian smoothing."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Gaussian Blur → Canny"
-            ),
-            "requires_color": False,
-        },
-
-        "Sobel Edge Detection": {
-            "category": "Edge Detection",
-            "description": (
-                "Computes image intensity gradients using the "
-                "Sobel operator."
-            ),
-            "pipeline": "Original → Grayscale → Sobel",
-            "requires_color": False,
-        },
-
-        "Laplacian Edge Detection": {
-            "category": "Edge Detection",
-            "description": (
-                "Detects regions of rapid intensity change using "
-                "the Laplacian operator."
-            ),
-            "pipeline": "Original → Grayscale → Laplacian",
-            "requires_color": False,
-        },
-
-        "Erosion": {
-            "category": "Morphology",
-            "description": (
-                "Shrinks foreground regions using a morphological "
-                "erosion operation."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Threshold → Erosion"
-            ),
-            "requires_color": False,
-        },
-
-        "Dilation": {
-            "category": "Morphology",
-            "description": (
-                "Expands foreground regions using a morphological "
-                "dilation operation."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Threshold → Dilation"
-            ),
-            "requires_color": False,
-        },
-
-        "Opening": {
-            "category": "Morphology",
-            "description": (
-                "Applies erosion followed by dilation to remove "
-                "small foreground noise."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Threshold → Opening"
-            ),
-            "requires_color": False,
-        },
-
-        "Closing": {
-            "category": "Morphology",
-            "description": (
-                "Applies dilation followed by erosion to close "
-                "small holes and gaps."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Threshold → Closing"
-            ),
-            "requires_color": False,
-        },
-
-        "Contour Detection": {
-            "category": "Contours",
-            "description": (
-                "Detects object contours from the thresholded "
-                "binary image."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Threshold → Contours"
-            ),
-            "requires_color": False,
-        },
-
-        "RGB Channels": {
-            "category": "Color Analysis",
-            "description": (
-                "Separates the input image into Red, Green, "
-                "and Blue channel representations."
-            ),
-            "pipeline": "Original → RGB Channel Separation",
-            "requires_color": True,
-        },
-
-        "HSV Channels": {
-            "category": "Color Analysis",
-            "description": (
-                "Separates the image into Hue, Saturation, "
-                "and Value components."
-            ),
-            "pipeline": "Original → HSV Conversion",
-            "requires_color": True,
-        },
-
-        "Color Mask": {
-            "category": "Color Analysis",
-            "description": (
-                "Creates a binary mask containing pixels that "
-                "fall inside the selected HSV range."
-            ),
-            "pipeline": "Original → HSV → Color Mask",
-            "requires_color": True,
-        },
-
-        "Color Threshold Result": {
-            "category": "Color Analysis",
-            "description": (
-                "Keeps pixels inside the selected HSV range "
-                "and masks out the remaining regions."
-            ),
-            "pipeline": (
-                "Original → HSV → Color Thresholding"
-            ),
-            "requires_color": True,
-        },
-
-        "Harris Corners": {
-            "category": "Feature Detection",
-            "description": (
-                "Detects corners using the Harris corner "
-                "detection algorithm."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Harris Response → Corners"
-            ),
-            "requires_color": False,
-        },
-
-        "ORB Keypoints": {
-            "category": "Feature Detection",
-            "description": (
-                "Detects local image features using the "
-                "ORB feature detector."
-            ),
-            "pipeline": "Original → Grayscale → ORB",
-            "requires_color": False,
-        },
-
-        "Face Detection": {
-            "category": "Object Detection",
-            "description": (
-                "Detects faces using OpenCV's built-in Haar "
-                "Cascade classifier and marks them with boxes."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Haar Cascade → Bounding Boxes"
-            ),
-            "requires_color": False,
-        },
-
-        "Object Detection": {
-            "category": "Object Detection",
-            "description": (
-                "Detects instances of a selected object class "
-                "(eyes, smiles, full bodies, cat faces, license "
-                "plates) using OpenCV's bundled Haar Cascade "
-                "classifiers."
-            ),
-            "pipeline": (
-                "Original → Grayscale → Haar Cascade (selected class) "
-                "→ Bounding Boxes"
-            ),
-            "requires_color": False,
-        },
-
-        "Grayscale Histogram": {
-            "category": "Histogram Analysis",
-            "description": (
-                "Displays the distribution of grayscale intensity "
-                "values in the image."
-            ),
-            "pipeline": "Original → Grayscale → Histogram",
-            "requires_color": False,
-        },
-    }
-
-
-    # ==================================================
     # SESSION STATE
     # ==================================================
+    #
+    # STAGES itself now lives in modules/stages.py — see that file
+    # for the full stage registry (metadata + processing handler for
+    # every pipeline stage). Adding a new stage means adding one
+    # entry there instead of editing this file in three places.
 
     if (
         "current_stage" not in st.session_state
@@ -789,22 +532,56 @@ if uploaded_file is not None:
 
 
     # ==================================================
+    # SIDEBAR PARAMETERS
+    # ==================================================
+    #
+    # Every stage handler in modules/stages.py reads its inputs from
+    # this single dict instead of app.py passing each slider value
+    # around by hand — one place to look when a new stage needs a
+    # new parameter.
+
+    params = dict(
+        threshold_value=threshold_value,
+        kernel_size=kernel_size,
+        lower_threshold=lower_threshold,
+        upper_threshold=upper_threshold,
+        sobel_kernel_size=sobel_kernel_size,
+        laplacian_kernel_size=laplacian_kernel_size,
+        morph_kernel_size=morph_kernel_size,
+        morph_iterations=morph_iterations,
+        contour_retrieval_mode=contour_retrieval_mode,
+        contour_approx_method=contour_approx_method,
+        min_contour_area=min_contour_area,
+        hue_range=hue_range,
+        saturation_range=saturation_range,
+        value_range=value_range,
+        harris_block_size=harris_block_size,
+        harris_ksize=harris_ksize,
+        harris_sensitivity=harris_sensitivity,
+        harris_threshold=harris_threshold,
+        orb_features=orb_features,
+        face_scale_factor=face_scale_factor,
+        face_min_neighbors=face_min_neighbors,
+        face_min_size=face_min_size,
+        object_type=object_type,
+        object_scale_factor=object_scale_factor,
+        object_min_neighbors=object_min_neighbors,
+        object_min_size=object_min_size,
+    )
+
+
+    # ==================================================
     # CURRENT STAGE INFORMATION
     # ==================================================
 
     stage_info = STAGES[stage]
-
-    stage_category = stage_info["category"]
-    stage_description = stage_info["description"]
-    stage_pipeline = stage_info["pipeline"]
-    stage_requires_color = stage_info["requires_color"]
 
 
     # ==================================================
     # COLOR VALIDATION
     # ==================================================
 
-    if stage_requires_color and not is_color_image:
+    if stage_info.requires_color and not is_color_image:
 
         st.divider()
 
@@ -829,377 +606,22 @@ if uploaded_file is not None:
         # ==================================================
         # LAZY PROCESSING PIPELINE
         # ==================================================
-
-        current_image = None
-        extra_info = None
-
-
-        # ==================================================
-        # ORIGINAL IMAGE
-        # ==================================================
-
-        if stage == "Original Image":
-
-            current_image = image_np
-
-
-        # ==================================================
-        # GRAYSCALE
-        # ==================================================
-
-        elif stage == "Grayscale Image":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            current_image = grayscale
-
-
-        # ==================================================
-        # BINARY
-        # ==================================================
-
-        elif stage == "Binary Image":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            current_image = apply_threshold(
-                grayscale,
-                threshold_value,
-            )
-
-
-        # ==================================================
-        # GAUSSIAN BLUR
-        # ==================================================
-
-        elif stage == "Gaussian Blur":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            current_image = apply_gaussian_blur(
-                grayscale,
-                kernel_size,
-            )
-
-
-        # ==================================================
-        # CANNY
-        # ==================================================
-
-        elif stage == "Canny Edge Detection":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            blurred = apply_gaussian_blur(
-                grayscale,
-                kernel_size,
-            )
-
-            # Guard clause: the sidebar already warns if
-            # lower_threshold > upper_threshold, but cv2.Canny
-            # still needs well-ordered bounds to behave correctly.
-            actual_lower = min(lower_threshold, upper_threshold)
-            actual_upper = max(lower_threshold, upper_threshold)
-
-            current_image = apply_canny(
-                blurred,
-                actual_lower,
-                actual_upper,
-            )
-
-            extra_info = (
-                "Canny uses the Gaussian Blur settings "
-                "defined above."
-            )
-
-
-        # ==================================================
-        # SOBEL
-        # ==================================================
-
-        elif stage == "Sobel Edge Detection":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            current_image = apply_sobel(
-                grayscale,
-                sobel_kernel_size,
-            )
-
-
-        # ==================================================
-        # LAPLACIAN
-        # ==================================================
-
-        elif stage == "Laplacian Edge Detection":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            current_image = apply_laplacian(
-                grayscale,
-                laplacian_kernel_size,
-            )
-
-
-        # ==================================================
-        # MORPHOLOGY
-        # ==================================================
-
-        elif stage in [
-            "Erosion",
-            "Dilation",
-            "Opening",
-            "Closing",
-        ]:
-
-            grayscale = convert_to_grayscale(image_np)
-
-            binary = apply_threshold(
-                grayscale,
-                threshold_value,
-            )
-
-            if stage == "Erosion":
-
-                current_image = apply_erosion(
-                    binary,
-                    morph_kernel_size,
-                    morph_iterations,
-                )
-
-            elif stage == "Dilation":
-
-                current_image = apply_dilation(
-                    binary,
-                    morph_kernel_size,
-                    morph_iterations,
-                )
-
-            elif stage == "Opening":
-
-                current_image = apply_opening(
-                    binary,
-                    morph_kernel_size,
-                    morph_iterations,
-                )
-
-            elif stage == "Closing":
-
-                current_image = apply_closing(
-                    binary,
-                    morph_kernel_size,
-                    morph_iterations,
-                )
-
-
-        # ==================================================
-        # CONTOUR DETECTION
-        # ==================================================
-
-        elif stage == "Contour Detection":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            binary = apply_threshold(
-                grayscale,
-                threshold_value,
-            )
-
-            current_image, contour_count = (
-                apply_contour_detection(
-                    binary,
-                    grayscale,
-                    contour_retrieval_mode,
-                    contour_approx_method,
-                    min_contour_area,
-                )
-            )
-
-            extra_info = (
-                f"Found **{contour_count}** contours "
-                "after the area filter."
-            )
-
-
-        # ==================================================
-        # RGB CHANNELS
-        # ==================================================
-
-        elif stage == "RGB Channels":
-
-            current_image = build_rgb_channel_composite(
-                image_np
-            )
-
-            extra_info = (
-                "Left to right: **Red**, **Green**, "
-                "**Blue** channel isolated."
-            )
-
-
-        # ==================================================
-        # HSV CHANNELS
-        # ==================================================
-
-        elif stage == "HSV Channels":
-
-            current_image = build_hsv_channel_composite(
-                image_np
-            )
-
-            extra_info = (
-                "Left to right: **Hue** (colorized), "
-                "**Saturation**, **Value**."
-            )
-
-
-        # ==================================================
-        # COLOR THRESHOLDING
-        # ==================================================
-
-        elif stage in [
-            "Color Mask",
-            "Color Threshold Result",
-        ]:
-
-            color_mask, color_result = (
-                apply_color_threshold(
-                    image_np,
-                    hue_range,
-                    saturation_range,
-                    value_range,
-                )
-            )
-
-            if stage == "Color Mask":
-
-                current_image = color_mask
-
-                extra_info = (
-                    "White pixels fall inside the "
-                    "selected HSV range."
-                )
-
-            else:
-
-                current_image = color_result
-
-                extra_info = (
-                    "Pixels outside the selected HSV "
-                    "range are masked out."
-                )
-
-
-        # ==================================================
-        # HARRIS CORNERS
-        # ==================================================
-
-        elif stage == "Harris Corners":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            harris_response = compute_harris_response(
-                grayscale,
-                harris_block_size,
-                harris_ksize,
-                harris_sensitivity,
-            )
-
-            current_image = apply_harris_corners(
-                grayscale,
-                harris_response,
-                harris_threshold,
-            )
-
-            extra_info = (
-                "Detected corners are marked by "
-                "strong intensity changes in multiple directions."
-            )
-
-
-        # ==================================================
-        # ORB
-        # ==================================================
-
-        elif stage == "ORB Keypoints":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            current_image, orb_keypoint_count = (
-                apply_orb_keypoints(
-                    grayscale,
-                    orb_features,
-                )
-            )
-
-            extra_info = (
-                f"Found **{orb_keypoint_count}** ORB keypoints "
-                "(circle size ≈ feature scale)."
-            )
-
-
-        # ==================================================
-        # FACE DETECTION
-        # ==================================================
-
-        elif stage == "Face Detection":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            current_image, face_count = apply_face_detection(
-                image_np,
-                grayscale,
-                face_scale_factor,
-                face_min_neighbors,
-                face_min_size,
-            )
-
-            extra_info = (
-                f"Found **{face_count}** face(s). "
-                "Haar Cascade works best on frontal, "
-                "well-lit faces."
-            )
-
-
-        # ==================================================
-        # OBJECT DETECTION
-        # ==================================================
-
-        elif stage == "Object Detection":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            current_image, object_count = apply_object_detection(
-                image_np,
-                grayscale,
-                object_type,
-                object_scale_factor,
-                object_min_neighbors,
-                object_min_size,
-            )
-
-            extra_info = (
-                f"Found **{object_count}** instance(s) of "
-                f"**{object_type}**. Not every image will contain "
-                "this object class."
-            )
-
-
-        # ==================================================
-        # HISTOGRAM
-        # ==================================================
-
-        elif stage == "Grayscale Histogram":
-
-            grayscale = convert_to_grayscale(image_np)
-
-            histogram = compute_histogram(
-                grayscale
-            )
-
-            current_image = build_histogram_figure(
-                histogram
-            )
+        #
+        # Only the selected stage runs, and it only gets a grayscale
+        # conversion if it actually uses one — the color stages
+        # (Original, RGB/HSV Channels, Color Mask/Threshold) work off
+        # image_np directly and receive None here.
+
+        grayscale = (
+            convert_to_grayscale(image_np)
+            if stage_info.needs_grayscale
+            else None
+        )
+
+        result = stage_info.handler(image_np, grayscale, params)
+
+        current_image = result.image
+        extra_info = result.extra_info
 
 
         # ==================================================
@@ -1211,17 +633,17 @@ if uploaded_file is not None:
         st.subheader(stage)
 
         st.caption(
-            f"**Category:** {stage_category}"
+            f"**Category:** {stage_info.category}"
         )
 
-        st.write(stage_description)
+        st.write(stage_info.description)
 
         with st.expander(
             "🔗 Processing Pipeline",
             expanded=False,
         ):
             st.code(
-                stage_pipeline,
+                stage_info.pipeline,
                 language="text",
             )
 
@@ -1230,21 +652,41 @@ if uploaded_file is not None:
         # DISPLAY CURRENT RESULT
         # ==================================================
 
-        if stage == "Grayscale Histogram":
+        download_filename = (
+            stage.lower().replace(" ", "_").replace("/", "_")
+            + ".png"
+        )
+
+        if stage_info.is_figure:
 
             st.pyplot(
                 current_image,
                 width="content",
             )
 
-            histogram_png_bytes = get_figure_download_bytes(current_image)
+            result_bytes = get_figure_download_bytes(current_image)
 
-            st.download_button(
-                "⬇️ Download Histogram (PNG)",
-                data=histogram_png_bytes,
-                file_name="grayscale_histogram.png",
-                mime="image/png",
-            )
+            download_col, save_col = st.columns(2)
+
+            with download_col:
+                st.download_button(
+                    "⬇️ Download Histogram (PNG)",
+                    data=result_bytes,
+                    file_name=download_filename,
+                    mime="image/png",
+                    width="stretch",
+                )
+
+            with save_col:
+                if st.button(
+                    "💾 Save a copy to results/",
+                    key="save_result_button",
+                    width="stretch",
+                ):
+                    saved_path = save_result_locally(
+                        result_bytes, download_filename
+                    )
+                    st.success(f"Saved to {saved_path}")
 
         elif current_image is None:
 
@@ -1265,32 +707,36 @@ if uploaded_file is not None:
                     extra_info
                 )
 
-            download_filename = (
-                stage.lower().replace(" ", "_").replace("/", "_")
-                + ".png"
-            )
+            result_bytes = get_image_download_bytes(current_image)
 
-            st.download_button(
-                "⬇️ Download Result (PNG)",
-                data=get_image_download_bytes(current_image),
-                file_name=download_filename,
-                mime="image/png",
-            )
+            download_col, save_col = st.columns(2)
+
+            with download_col:
+                st.download_button(
+                    "⬇️ Download Result (PNG)",
+                    data=result_bytes,
+                    file_name=download_filename,
+                    mime="image/png",
+                    width="stretch",
+                )
+
+            with save_col:
+                if st.button(
+                    "💾 Save a copy to results/",
+                    key="save_result_button",
+                    width="stretch",
+                ):
+                    saved_path = save_result_locally(
+                        result_bytes, download_filename
+                    )
+                    st.success(f"Saved to {saved_path}")
 
 
         # ==================================================
         # HISTOGRAM STATISTICS
         # ==================================================
 
-        if stage == "Grayscale Histogram":
-
-            grayscale = convert_to_grayscale(
-                image_np
-            )
-
-            histogram_values = compute_histogram(
-                grayscale
-            )
+        if stage_info.is_figure:
 
             st.subheader(
                 "📊 Image Statistics"
