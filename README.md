@@ -58,11 +58,23 @@ Each parameter can be adjusted dynamically and the result is updated immediately
 - Live stage counter (e.g. `19 / 21`)
 - Each stage displays its category, a short description, and an expandable "Processing Pipeline" breakdown
 - **Download button** on every stage to save the current result as a PNG (the histogram downloads as its plotted figure)
+- **Save a copy to `results/`** button next to every download button, for local runs — writes a timestamped PNG straight to the `results/` folder instead of going through the browser's download dialog
 
 ### ⚡ Performance
 
-- **Lazy stage evaluation**: only the currently displayed stage is computed on each rerun, instead of the full pipeline — moving one slider no longer recomputes unrelated stages.
-- Expensive operations (Harris response, Gaussian blur, etc.) are cached independently with `@st.cache_data`.
+- **Lazy stage evaluation**: only the currently displayed stage is computed on each rerun, instead of the full pipeline — moving one slider no longer recomputes unrelated stages. Stages that never touch the grayscale conversion (Original, RGB/HSV Channels, Color Mask/Threshold) skip it entirely.
+- **Measured caching policy.** `@st.cache_data` isn't free: it hashes the full input array (~6 MB for a 1920×1080 image) and copies the result back out, costing ~1.5–2.5 ms per call. So caching is applied only where it actually wins, based on benchmarks:
+
+  | Operation | Raw compute | Cache hit | Cached? |
+  |---|---|---|---|
+  | Grayscale / threshold / blur / morphology | 0.1–0.6 ms | ~1.5–2 ms | ❌ cache cost more than the work |
+  | Canny / Sobel / contours | 16–21 ms | ~1.5 ms | ✅ |
+  | Harris / ORB / color threshold | 28–92 ms | ~2–4 ms | ✅ |
+  | Haar Cascade detection | ~700 ms | ~2 ms | ✅ |
+  | PNG encoding for the download button | ~46 ms | ~2.6 ms | ✅ |
+
+- **Bounded caches**: every remaining cache sets `max_entries`, so dragging a slider can't accumulate one full-size image per position. (Previously, sweeping the 0–255 threshold slider alone could cache ~500 MB of images.)
+- **No figure leak**: the histogram is built with matplotlib's object-oriented `Figure` instead of `plt.subplots()`, which would otherwise keep every figure ever rendered alive in pyplot's global registry — one per rerun.
 - Models/resources (Haar Cascade detectors) are cached with `@st.cache_resource` and loaded only once per session, instead of on every rerun.
 - Large uploads are automatically downscaled before processing, keeping CPU-heavy operations (Haar Cascade, Harris, Canny) responsive even on 12MP+ photos.
 
@@ -155,13 +167,14 @@ All originally planned features are complete. 🎉
 ```text
 computer-vision-lab/
 │
-├── app.py
+├── app.py                  # Streamlit entry point / UI shell
 ├── requirements.txt
+├── pytest.ini
 ├── README.md
 ├── .gitignore
 │
-├── images/
-├── modules/
+├── images/                 # Sample images used for local testing
+├── modules/                # All image-processing logic, one file per topic
 │   ├── __init__.py
 │   ├── io_utils.py
 │   ├── basic_ops.py
@@ -173,9 +186,11 @@ computer-vision-lab/
 │   ├── feature_detection.py
 │   ├── face_detection.py
 │   ├── object_detection.py
-│   └── histogram.py
-├── outputs/
-└── pages/
+│   ├── histogram.py
+│   └── stages.py           # Stage registry: metadata + handler per pipeline stage
+├── tests/                  # pytest unit tests for modules/
+├── assets/                 # Static UI assets (favicon/logo) — currently empty
+└── results/                # Local "save a copy" output for processed images
 ```
 
 ---

@@ -15,3 +15,7 @@ env/
 
 # Streamlit cache
 .streamlit/
+
+# Locally saved processing results (see results/README.md)
+results/*.png
+results/*.jpg
