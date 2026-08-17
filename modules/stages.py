@@ -33,14 +33,29 @@ from modules.color_analysis import (
 )
 from modules.color_threshold import apply_color_threshold
 from modules.contours import apply_contour_detection
+from modules.deep_detection import (
+    MissingDependencyError,
+    apply_mediapipe_landmarks,
+    apply_yolo_detection,
+    is_mediapipe_available,
+    is_yolo_available,
+)
 from modules.edges import apply_canny, apply_laplacian, apply_sobel
+from modules.enhancement import apply_clahe, apply_histogram_equalization
 from modules.face_detection import apply_face_detection
 from modules.feature_detection import (
     apply_harris_corners,
     apply_orb_keypoints,
     compute_harris_response,
 )
-from modules.histogram import build_histogram_figure, compute_histogram
+from modules.filters import apply_bilateral_filter, apply_median_filter
+from modules.histogram import (
+    build_color_histogram_figure,
+    build_histogram_figure,
+    compute_color_histograms,
+    compute_histogram,
+)
+from modules.hough import apply_hough_circles, apply_hough_lines
 from modules.morphology import (
     apply_closing,
     apply_dilation,
@@ -48,6 +63,7 @@ from modules.morphology import (
     apply_opening,
 )
 from modules.object_detection import apply_object_detection
+from modules.thresholding import apply_adaptive_threshold, apply_otsu_threshold
 
 
 class StageResult(NamedTuple):
@@ -74,6 +90,9 @@ class Stage(NamedTuple):
     # never touch the grayscale conversion, so app.py can skip
     # computing it for them entirely.
     needs_grayscale: bool = True
+    # True for the stage that reports mean/median/min/max under its
+    # result. Only the grayscale histogram does.
+    shows_statistics: bool = False
 
 
 # ==================================================
@@ -275,9 +294,189 @@ def _object_detection(image_np, grayscale, params):
     )
 
 
+def _otsu_threshold(image_np, grayscale, params):
+    result, chosen = apply_otsu_threshold(grayscale)
+
+    return StageResult(
+        result,
+        f"Otsu picked **{int(chosen)}** as the threshold, derived from "
+        "the image histogram rather than set by hand.",
+    )
+
+
+def _adaptive_threshold(image_np, grayscale, params):
+    result = apply_adaptive_threshold(
+        grayscale,
+        params["adaptive_method"],
+        params["adaptive_block_size"],
+        params["adaptive_constant"],
+    )
+
+    return StageResult(
+        result,
+        "Each pixel is compared against its own neighbourhood, so "
+        "uneven lighting doesn't wash out whole regions.",
+    )
+
+
+def _median_filter(image_np, grayscale, params):
+    return StageResult(
+        apply_median_filter(image_np, params["median_kernel_size"]),
+        "Median filtering removes salt-and-pepper noise outright "
+        "instead of smearing it, unlike a Gaussian blur.",
+    )
+
+
+def _bilateral_filter(image_np, grayscale, params):
+    return StageResult(
+        apply_bilateral_filter(
+            image_np,
+            params["bilateral_diameter"],
+            params["bilateral_sigma_color"],
+            params["bilateral_sigma_space"],
+        ),
+        "Smooths flat regions while keeping edges sharp — compare it "
+        "with Gaussian Blur on the same image.",
+    )
+
+
+def _histogram_equalization(image_np, grayscale, params):
+    return StageResult(
+        apply_histogram_equalization(grayscale),
+        "Stretches the intensity histogram across the full 0–255 "
+        "range, lifting detail out of a low-contrast image.",
+    )
+
+
+def _clahe(image_np, grayscale, params):
+    return StageResult(
+        apply_clahe(
+            grayscale,
+            params["clahe_clip_limit"],
+            params["clahe_tile_size"],
+        ),
+        "Equalizes contrast per tile with a clip limit, so local "
+        "detail improves without noise being over-amplified.",
+    )
+
+
+def _hough_lines(image_np, grayscale, params):
+    result, count = apply_hough_lines(
+        grayscale,
+        min(params["lower_threshold"], params["upper_threshold"]),
+        max(params["lower_threshold"], params["upper_threshold"]),
+        params["hough_line_threshold"],
+        params["hough_min_line_length"],
+        params["hough_max_line_gap"],
+    )
+
+    return StageResult(
+        result,
+        f"Found **{count}** line segment(s). Uses the Canny thresholds "
+        "from the Edge Detection section to find edges first.",
+    )
+
+
+def _hough_circles(image_np, grayscale, params):
+    result, count = apply_hough_circles(
+        grayscale,
+        params["circle_min_distance"],
+        params["circle_threshold"],
+        params["circle_min_radius"],
+        params["circle_max_radius"],
+    )
+
+    return StageResult(
+        result,
+        f"Found **{count}** circle(s). Circle detection is sensitive — "
+        "expect to tune the radius range for your image.",
+    )
+
+
 def _grayscale_histogram(image_np, grayscale, params):
     histogram = compute_histogram(grayscale)
     return StageResult(build_histogram_figure(histogram))
+
+
+def _color_histogram(image_np, grayscale, params):
+    histograms = compute_color_histograms(image_np)
+
+    return StageResult(
+        build_color_histogram_figure(histograms),
+        "Each curve is one colour channel — a strong colour cast "
+        "shows up as one channel shifted away from the others.",
+    )
+
+
+# The two deep-learning stages degrade gracefully: if the optional
+# package isn't installed, or the model can't be fetched, they return
+# no image and explain what's missing instead of raising and taking the
+# whole page down.
+
+def _yolo_detection(image_np, grayscale, params):
+    if not is_yolo_available():
+        return StageResult(
+            None,
+            "**YOLO isn't installed.** Run `pip install -r "
+            "requirements-ml.txt` to enable this stage. The rest of "
+            "the app works without it.",
+        )
+
+    model_name = params["yolo_model"]
+
+    try:
+        result, count, summary = apply_yolo_detection(
+            image_np,
+            model_name,
+            params["yolo_confidence"],
+            params["yolo_iou"],
+        )
+
+    except (MissingDependencyError, RuntimeError) as error:
+        return StageResult(None, str(error))
+
+    if count == 0:
+        detail = (
+            "Nothing detected above the confidence threshold — "
+            "try lowering it in the sidebar."
+        )
+    else:
+        detail = f"Detected: {summary}."
+
+    return StageResult(
+        result,
+        f"**{count}** object(s) found by {model_name}. {detail}",
+    )
+
+
+def _mediapipe_landmarks(image_np, grayscale, params):
+    if not is_mediapipe_available():
+        return StageResult(
+            None,
+            "**MediaPipe isn't installed.** Run `pip install -r "
+            "requirements-ml.txt` to enable this stage. The rest of "
+            "the app works without it.",
+        )
+
+    task_name = params["mediapipe_task"]
+
+    try:
+        result, count, summary = apply_mediapipe_landmarks(
+            image_np, task_name
+        )
+
+    except (MissingDependencyError, RuntimeError) as error:
+        return StageResult(None, str(error))
+
+    if count == 0:
+        detail = (
+            "Nothing detected — MediaPipe needs the subject to be "
+            "reasonably large and clearly visible in the frame."
+        )
+    else:
+        detail = f"Found {summary}."
+
+    return StageResult(result, f"**{task_name}.** {detail}")
 
 
 # ==================================================
@@ -325,6 +524,74 @@ STAGES: dict[str, Stage] = {
         pipeline="Original → Grayscale → Gaussian Blur",
         requires_color=False,
         handler=_gaussian_blur,
+    ),
+    "Otsu Threshold": Stage(
+        category="Thresholding",
+        description=(
+            "Binarizes the image using Otsu's method, which analyses "
+            "the histogram and picks the threshold that best separates "
+            "foreground from background — no slider needed."
+        ),
+        pipeline="Original → Grayscale → Otsu Threshold",
+        requires_color=False,
+        handler=_otsu_threshold,
+    ),
+    "Adaptive Threshold": Stage(
+        category="Thresholding",
+        description=(
+            "Computes a separate threshold for every neighbourhood "
+            "instead of one for the whole image, which is what makes "
+            "unevenly lit photos and scanned documents readable."
+        ),
+        pipeline="Original → Grayscale → Adaptive Threshold",
+        requires_color=False,
+        handler=_adaptive_threshold,
+    ),
+    "Median Filter": Stage(
+        category="Noise Filtering",
+        description=(
+            "Replaces each pixel with the median of its neighbourhood. "
+            "The classic remedy for salt-and-pepper noise, which a "
+            "Gaussian blur only smears around."
+        ),
+        pipeline="Original → Median Filter",
+        requires_color=False,
+        handler=_median_filter,
+        needs_grayscale=False,
+    ),
+    "Bilateral Filter": Stage(
+        category="Noise Filtering",
+        description=(
+            "Edge-preserving smoothing: averages only over neighbours "
+            "that are both close by and similar in intensity, so flat "
+            "areas are cleaned up while edges stay sharp."
+        ),
+        pipeline="Original → Bilateral Filter",
+        requires_color=False,
+        handler=_bilateral_filter,
+        needs_grayscale=False,
+    ),
+    "Histogram Equalization": Stage(
+        category="Enhancement",
+        description=(
+            "Redistributes intensities so the full range is used, "
+            "which pulls detail out of flat, low-contrast images."
+        ),
+        pipeline="Original → Grayscale → Histogram Equalization",
+        requires_color=False,
+        handler=_histogram_equalization,
+    ),
+    "CLAHE": Stage(
+        category="Enhancement",
+        description=(
+            "Contrast Limited Adaptive Histogram Equalization — "
+            "equalizes each tile separately with a clip limit, giving "
+            "local contrast without the noise amplification that "
+            "global equalization causes."
+        ),
+        pipeline="Original → Grayscale → CLAHE",
+        requires_color=False,
+        handler=_clahe,
     ),
     "Canny Edge Detection": Stage(
         category="Edge Detection",
@@ -405,6 +672,31 @@ STAGES: dict[str, Stage] = {
         pipeline="Original → Grayscale → Threshold → Contours",
         requires_color=False,
         handler=_contours,
+    ),
+    "Hough Lines": Stage(
+        category="Hough Transform",
+        description=(
+            "Finds straight line segments by letting every edge pixel "
+            "vote for the lines that could pass through it, then "
+            "keeping the peaks. The standard way to detect roads, "
+            "document edges or building structure."
+        ),
+        pipeline="Original → Grayscale → Canny → Hough Lines",
+        requires_color=False,
+        handler=_hough_lines,
+    ),
+    "Hough Circles": Stage(
+        category="Hough Transform",
+        description=(
+            "The same voting idea applied to circles, using gradient "
+            "directions to keep the search tractable. Used for coins, "
+            "pupils, dials and other round objects."
+        ),
+        pipeline=(
+            "Original → Grayscale → Median Blur → Hough Circles"
+        ),
+        requires_color=False,
+        handler=_hough_circles,
     ),
     "RGB Channels": Stage(
         category="Color Analysis",
@@ -497,6 +789,34 @@ STAGES: dict[str, Stage] = {
         requires_color=False,
         handler=_object_detection,
     ),
+    "YOLO Object Detection": Stage(
+        category="Deep Learning",
+        description=(
+            "Detects objects with a YOLOv8 neural network trained on "
+            "the COCO dataset (80 classes: people, vehicles, animals, "
+            "everyday items). Unlike the Haar Cascades above, it finds "
+            "many classes at once and copes with angle, scale and "
+            "lighting variation. Requires the optional ML dependencies."
+        ),
+        pipeline="Original → YOLOv8 (CNN) → Boxes + Class + Confidence",
+        requires_color=False,
+        handler=_yolo_detection,
+        needs_grayscale=False,
+    ),
+    "MediaPipe Landmarks": Stage(
+        category="Deep Learning",
+        description=(
+            "Detects fine-grained landmarks with Google's MediaPipe: a "
+            "468-point face mesh, 21-point hand skeletons, or a "
+            "33-point body pose. Where a bounding box says only where "
+            "something is, landmarks describe its shape and posture. "
+            "Requires the optional ML dependencies."
+        ),
+        pipeline="Original → MediaPipe Task → Landmarks + Connections",
+        requires_color=False,
+        handler=_mediapipe_landmarks,
+        needs_grayscale=False,
+    ),
     "Grayscale Histogram": Stage(
         category="Histogram Analysis",
         description=(
@@ -507,5 +827,19 @@ STAGES: dict[str, Stage] = {
         requires_color=False,
         handler=_grayscale_histogram,
         is_figure=True,
+        shows_statistics=True,
+    ),
+    "Color Histogram": Stage(
+        category="Histogram Analysis",
+        description=(
+            "Plots the intensity distribution of the Red, Green and "
+            "Blue channels together, which makes colour casts and "
+            "clipped channels obvious at a glance."
+        ),
+        pipeline="Original → Per-Channel Histograms",
+        requires_color=True,
+        handler=_color_histogram,
+        is_figure=True,
+        needs_grayscale=False,
     ),
 }

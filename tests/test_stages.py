@@ -9,38 +9,16 @@ behavior or drop a stage.
 
 import pytest
 
+from modules.controls import default_params
 from modules.stages import STAGES, StageResult
 
-EXPECTED_STAGE_COUNT = 21
+EXPECTED_STAGE_COUNT = 32
 
-DEFAULT_PARAMS = dict(
-    threshold_value=127,
-    kernel_size=5,
-    lower_threshold=50,
-    upper_threshold=150,
-    sobel_kernel_size=3,
-    laplacian_kernel_size=3,
-    morph_kernel_size=5,
-    morph_iterations=1,
-    contour_retrieval_mode="External",
-    contour_approx_method="Simple",
-    min_contour_area=50,
-    hue_range=(0, 179),
-    saturation_range=(0, 255),
-    value_range=(0, 255),
-    harris_block_size=2,
-    harris_ksize=3,
-    harris_sensitivity=0.04,
-    harris_threshold=0.01,
-    orb_features=300,
-    face_scale_factor=1.10,
-    face_min_neighbors=5,
-    face_min_size=30,
-    object_type="Eyes",
-    object_scale_factor=1.10,
-    object_min_neighbors=5,
-    object_min_size=20,
-)
+# Built from the sidebar schema rather than restated here, so a
+# parameter added to modules/controls.py is automatically exercised
+# against every handler — and a handler reading a key the sidebar
+# never defines fails these tests with a KeyError.
+DEFAULT_PARAMS = default_params()
 
 
 def test_registry_has_all_expected_stages():
@@ -70,18 +48,27 @@ def test_color_only_stages_are_flagged_correctly():
         "HSV Channels",
         "Color Mask",
         "Color Threshold Result",
+        "Color Histogram",
     }
 
     for name, stage in STAGES.items():
         assert stage.requires_color == (name in color_only)
 
 
-def test_histogram_is_the_only_figure_stage():
-    figure_stages = [
+def test_figure_stages_are_the_histograms():
+    figure_stages = {
         name for name, stage in STAGES.items() if stage.is_figure
+    }
+
+    assert figure_stages == {"Grayscale Histogram", "Color Histogram"}
+
+
+def test_only_the_grayscale_histogram_shows_statistics():
+    with_stats = [
+        name for name, stage in STAGES.items() if stage.shows_statistics
     ]
 
-    assert figure_stages == ["Grayscale Histogram"]
+    assert with_stats == ["Grayscale Histogram"]
 
 
 @pytest.mark.parametrize(
@@ -114,4 +101,9 @@ def test_grayscale_free_stages_are_the_color_ones():
         "HSV Channels",
         "Color Mask",
         "Color Threshold Result",
+        "YOLO Object Detection",
+        "MediaPipe Landmarks",
+        "Median Filter",
+        "Bilateral Filter",
+        "Color Histogram",
     }
