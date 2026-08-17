@@ -1,0 +1,13 @@
+# Optional deep-learning stages (YOLO Object Detection, MediaPipe
+# Landmarks). The app runs fine without these — those two stages just
+# show an install hint instead of a result.
+#
+# Note: ultralytics pulls in PyTorch, so this is a large install
+# (~2 GB). For a CPU-only, much smaller PyTorch build, install torch
+# first from the CPU wheel index:
+#
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-ml.txt
+
+ultralytics>=8.3
+mediapipe>=0.10.30
