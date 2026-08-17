@@ -42,6 +42,47 @@ def build_histogram_figure(histogram: np.ndarray) -> Figure:
     return fig
 
 
+def compute_color_histograms(image_np: np.ndarray) -> dict:
+    """
+    Per-channel intensity histograms for a colour image.
+
+    Returns {"Red": hist, "Green": hist, "Blue": hist}, or an empty
+    dict for grayscale-only input, which has no channels to separate.
+    """
+
+    if image_np.ndim == 2:
+        return {}
+
+    rgb = image_np[:, :, :3]
+
+    return {
+        name: cv2.calcHist([rgb], [index], None, [256], [0, 256])
+        for index, name in enumerate(("Red", "Green", "Blue"))
+    }
+
+
+def build_color_histogram_figure(histograms: dict) -> Figure:
+    """Plot the three channel histograms over one another."""
+
+    fig = Figure(figsize=(5, 3))
+    ax = fig.subplots()
+
+    # Each curve is drawn in the colour of the channel it describes, so
+    # the plot reads without constantly checking the legend.
+    for name, histogram in histograms.items():
+        ax.plot(histogram, color=name.lower(), label=name, linewidth=1)
+
+    ax.set_title("Color Histogram")
+    ax.set_xlabel("Pixel Intensity")
+    ax.set_ylabel("Frequency")
+    ax.set_xlim([0, 256])
+    ax.legend(loc="upper right", fontsize=8)
+
+    fig.tight_layout()
+
+    return fig
+
+
 def get_figure_download_bytes(fig: Figure) -> bytes:
     """Encode a matplotlib figure as PNG bytes for st.download_button."""
 

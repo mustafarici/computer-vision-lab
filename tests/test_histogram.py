@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 
 from modules.histogram import (
+    build_color_histogram_figure,
     build_histogram_figure,
+    compute_color_histograms,
     compute_histogram,
     get_figure_download_bytes,
 )
@@ -29,6 +31,40 @@ def test_get_figure_download_bytes_is_png(grayscale_image):
     data = get_figure_download_bytes(figure)
 
     assert data[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_color_histograms_cover_all_three_channels(color_image):
+    histograms = compute_color_histograms(color_image)
+
+    assert list(histograms) == ["Red", "Green", "Blue"]
+
+    for histogram in histograms.values():
+        assert histogram.shape == (256, 1)
+        assert int(histogram.sum()) == color_image.shape[0] * color_image.shape[1]
+
+
+def test_color_histograms_are_empty_for_grayscale(grayscale_only_image):
+    assert compute_color_histograms(grayscale_only_image) == {}
+
+
+def test_color_histogram_counts_the_red_patch(color_image):
+    """
+    The fixture paints a pure-red rectangle, so the red channel must
+    have more fully-saturated pixels than the green one — which also
+    proves the channels aren't swapped.
+    """
+
+    histograms = compute_color_histograms(color_image)
+
+    assert histograms["Red"][255] > histograms["Green"][255]
+
+
+def test_color_histogram_figure_has_a_curve_per_channel(color_image):
+    figure = build_color_histogram_figure(
+        compute_color_histograms(color_image)
+    )
+
+    assert len(figure.axes[0].lines) == 3
 
 
 def test_figures_do_not_leak_into_pyplot_registry(grayscale_image):
