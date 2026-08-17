@@ -19,3 +19,7 @@ env/
 # Locally saved processing results (see results/README.md)
 results/*.png
 results/*.jpg
+
+# Downloaded ML model weights (fetched on first use)
+models/
+*.pt
