@@ -28,7 +28,13 @@ def load_face_cascade() -> cv2.CascadeClassifier:
     return cascade
 
 
-@st.cache_data(show_spinner=False)
+# By far the most expensive operation in the app (~700 ms on a
+# 1920x1080 image), so caching is essential — bounded because the
+# scale/neighbors/size sliders have thousands of combinations.
+MAX_CACHE_ENTRIES = 8
+
+
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_face_detection(
     image_np: np.ndarray,
     grayscale: np.ndarray,

@@ -38,7 +38,11 @@ def load_object_cascade(cascade_filename: str) -> cv2.CascadeClassifier:
     return cascade
 
 
-@st.cache_data(show_spinner=False)
+# Same cost profile as face detection — cached, but bounded.
+MAX_CACHE_ENTRIES = 8
+
+
+@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_object_detection(
     image_np: np.ndarray,
     grayscale: np.ndarray,
