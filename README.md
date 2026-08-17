@@ -1,12 +1,29 @@
 # 🧪 Computer Vision Lab
 
-An interactive computer vision and image processing laboratory built with **Python**, **OpenCV**, **NumPy**, **Pillow**, **Matplotlib**, and **Streamlit**.
+An interactive computer vision and image processing laboratory built with **Python**, **OpenCV**, **NumPy**, **Pillow**, **Matplotlib**, and **Streamlit** — with optional deep-learning stages powered by **YOLOv8** and **MediaPipe**.
 
-This project is designed to explore fundamental computer vision and image processing techniques through an interactive web application. New algorithms and processing methods will be added incrementally as the project evolves.
+This project explores computer vision techniques through an interactive web application: 32 processing stages, from a grayscale conversion up to a neural network detecting 80 object classes, each with its own controls and a short explanation of what it does and why.
 
 ---
 
-## ✨ Current Features
+## 🚀 Running it
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+The two deep-learning stages are optional, because they pull in PyTorch and MediaPipe's runtime:
+
+```bash
+pip install -r requirements-ml.txt
+```
+
+Without them the app runs exactly as before — those two stages just show an install hint instead of a result.
+
+---
+
+## ✨ Features
 
 ### 📷 Image Input
 
@@ -15,80 +32,111 @@ This project is designed to explore fundamental computer vision and image proces
 - Display of original vs. resized resolution when downscaling occurs
 - Display of image resolution and channel information
 - Automatic detection of color vs. grayscale-only input
-- Interactive image preview
 
-### 🖼️ Image Processing
+### 🖼️ Processing Stages
 
-- Grayscale Conversion
-- Binary Image Thresholding
-- Gaussian Blur
-- Canny Edge Detection (with automatic lower/upper threshold ordering)
-- Sobel Edge Detection
-- Laplacian Edge Detection
-- Morphological Operations (Erosion, Dilation, Opening, Closing)
-- Contour Detection
-- RGB Channel Analysis
-- HSV Color Space Analysis
-- HSV Range Color Thresholding
-- Feature Detection (Harris Corners, ORB Keypoints)
-- Face Detection (Haar Cascade)
-- Object Detection (Eyes, Smile, Full Body, Cat Face, License Plate — Haar Cascade)
-- Grayscale Histogram Analysis (with mean / median / min / max statistics)
+**Basic** — Grayscale conversion, fixed-threshold binarization, Gaussian blur
+
+**Thresholding** — Otsu's method (picks the threshold from the histogram automatically), adaptive thresholding (a separate threshold per neighbourhood, for unevenly lit images)
+
+**Noise Filtering** — Median filter (removes salt-and-pepper noise), bilateral filter (edge-preserving smoothing)
+
+**Contrast Enhancement** — Histogram equalization, CLAHE (contrast limited adaptive histogram equalization)
+
+**Edge Detection** — Canny, Sobel, Laplacian
+
+**Morphology** — Erosion, dilation, opening, closing
+
+**Contours** — Contour detection with retrieval-mode, approximation-method and minimum-area controls
+
+**Hough Transform** — Line and circle detection
+
+**Color Analysis** — RGB channel separation, HSV channel separation, HSV-range color masking and thresholding
+
+**Feature Detection** — Harris corners, ORB keypoints
+
+**Classical Object Detection** — Face detection and multi-class detection (eyes, smile, full body, cat face, license plate) via Haar Cascades
+
+**Deep Learning** *(optional)* — YOLOv8 object detection across 80 COCO classes with confidence and NMS controls; MediaPipe landmarks for a 468-point face mesh, 21-point hand skeletons, or 33-point body pose
+
+**Histogram Analysis** — Grayscale histogram with mean/median/min/max statistics, and a per-channel color histogram
 
 ### 🎛️ Interactive Controls
 
-Sidebar controls are grouped into collapsible sections by category:
+Controls are declared as data in `modules/controls.py` and grouped into collapsible sidebar sections. The section belonging to whatever stage is on screen opens automatically; the rest stay collapsed, so you're not scrolling past Hough parameters while tuning a blur.
 
-- **🔧 Basic Processing** — Threshold Value, Gaussian Blur Kernel Size
-- **📐 Edge Detection** — Canny Lower/Upper Threshold, Sobel Kernel Size, Laplacian Kernel Size
-- **🧩 Morphological Operations** — Structuring Element Size, Iterations
-- **🔲 Contour Detection** — Retrieval Mode, Approximation Method, Minimum Contour Area
-- **🎨 Color Analysis** — Hue / Saturation / Value Ranges (requires a color image)
-- **🔍 Feature Detection** — Harris Block Size, Sobel Aperture, Sensitivity, Response Threshold, ORB Max Keypoints
-- **😀 Face Detection** — Scale Factor, Minimum Neighbors, Minimum Face Size
-- **🔎 Object Detection** — Object Class, Scale Factor, Minimum Neighbors, Minimum Object Size
-- **ℹ️ Image Information** — resolution, channel count, color/grayscale type, resize notice
+Every parameter updates the result immediately. Stages that need a color image show a clear explanation rather than an error when a grayscale-only image is uploaded, and Canny warns you if the lower/upper thresholds are inverted while still computing a sensible result.
 
-Each parameter can be adjusted dynamically and the result is updated immediately. Stages that require a color image (RGB/HSV analysis, color thresholding) show a clear warning instead of an error when a grayscale-only image is uploaded. If the Canny lower/upper thresholds are set in the wrong order, the sidebar warns you but the computation still runs correctly with the values auto-sorted.
+### 🧭 Navigation
 
-### 🧭 Image Navigation
-
-- Previous / Next navigation
-- "Jump to a specific stage" dropdown for direct access to any processing step
-- Live stage counter (e.g. `19 / 21`)
-- Each stage displays its category, a short description, and an expandable "Processing Pipeline" breakdown
-- **Download button** on every stage to save the current result as a PNG (the histogram downloads as its plotted figure)
-
-### ⚡ Performance
-
-- **Lazy stage evaluation**: only the currently displayed stage is computed on each rerun, instead of the full pipeline — moving one slider no longer recomputes unrelated stages.
-- Expensive operations (Harris response, Gaussian blur, etc.) are cached independently with `@st.cache_data`.
-- Models/resources (Haar Cascade detectors) are cached with `@st.cache_resource` and loaded only once per session, instead of on every rerun.
-- Large uploads are automatically downscaled before processing, keeping CPU-heavy operations (Haar Cascade, Harris, Canny) responsive even on 12MP+ photos.
+- Previous / Next navigation and a "Jump to a specific stage" dropdown
+- Live stage counter
+- Each stage shows its category, a short description, and an expandable "Processing Pipeline" breakdown
+- **Download** any result as a PNG, or **save a copy to `results/`** directly when running locally
 
 ---
 
-## 🔬 Current Processing Pipeline
+## ⚡ Performance
+
+- **Lazy stage evaluation**: only the stage currently displayed is computed on each rerun. Stages that never touch the grayscale conversion (Original, RGB/HSV Channels, Color Mask/Threshold, the filters, YOLO, MediaPipe) skip it entirely.
+
+- **Measured caching policy.** `@st.cache_data` isn't free: it hashes the full input array (~6 MB for a 1920×1080 image) and copies the result back out, costing ~1.5–2.5 ms per call. So caching is applied only where benchmarks showed it wins:
+
+  | Operation | Raw compute | Cache hit | Cached? |
+  |---|---|---|---|
+  | Grayscale / threshold / blur / morphology | 0.1–0.6 ms | ~1.5–2 ms | ❌ cache cost more than the work |
+  | Canny / Sobel / contours | 16–21 ms | ~1.5 ms | ✅ |
+  | Harris / ORB / color thresholding | 28–92 ms | ~2–4 ms | ✅ |
+  | Bilateral filter / Hough / CLAHE | 10–200 ms | ~2–4 ms | ✅ |
+  | Haar Cascade detection | ~700 ms | ~2 ms | ✅ |
+  | PNG encoding for the download button | ~46 ms | ~2.6 ms | ✅ |
+
+- **Bounded caches**: every cache sets `max_entries`, so dragging a slider can't accumulate one full-size image per position. (Previously, sweeping the 0–255 threshold slider alone could cache ~500 MB of images.)
+
+- **No figure leak**: histograms are built with matplotlib's object-oriented `Figure` rather than `plt.subplots()`, which would keep every figure ever rendered alive in pyplot's global registry — one per rerun.
+
+- **Models loaded once**: Haar Cascades, YOLO weights and MediaPipe models are cached with `@st.cache_resource`, so they're read once per session rather than on every interaction.
+
+---
+
+## 🧪 Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+162 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
+
+Tests run on every push via GitHub Actions (`.github/workflows/tests.yml`) against Python 3.11 and 3.13.
+
+---
+
+## 🔬 Processing Pipeline
 
 ```text
                                  Input Image
                                       │
-                          ┌───────────┴───────────┐
-                          ▼                        ▼
-                     Grayscale          RGB / HSV Channels
-                          │                        │
-   ┌───────────┬──────────┼────────────┬───────────┴──┐
-   │           │          │            │              ▼
-   ▼           ▼          ▼            ▼        Color Thresholding
-Threshold  Gaussian    Sobel       Laplacian    (Mask + Result)
-   │          Blur         │
-   │           │           ├──► Harris Corners
-   │           │           ├──► ORB Keypoints
-   │           │           ├──► Face Detection (Haar Cascade)
-   │           │           └──► Object Detection (Haar Cascade)
-   │           ▼
-   │        Canny Edge
-   │        Detection
+              ┌───────────────────────┼───────────────────────┐
+              ▼                       ▼                       ▼
+         Grayscale            RGB / HSV Channels      Median / Bilateral
+              │                       │                    Filtering
+   ┌──────────┼───────────┐           ▼
+   │          │           │    Color Thresholding
+   │          │           │      (Mask + Result)
+   │          │           │
+   │          │           ├──► Otsu / Adaptive Threshold
+   │          │           ├──► Histogram Equalization / CLAHE
+   │          │           ├──► Sobel / Laplacian
+   │          │           ├──► Harris Corners / ORB Keypoints
+   │          │           ├──► Haar Cascade (faces, objects)
+   │          │           └──► Histogram
+   │          ▼
+   │      Gaussian Blur
+   │          │
+   │          ▼
+   │       Canny Edge ──────► Hough Lines
+   │       Detection
    ▼
 Binary Image
    │
@@ -99,43 +147,40 @@ Erosion    Dilation      Opening      Closing
    ▼
 Contour Detection
 
-(Grayscale also feeds the Histogram, in parallel with the above.)
+(The original image also feeds YOLO and MediaPipe directly — neural
+networks take the color image, not a preprocessed one.)
 ```
-
----
-
-## 🚀 Planned Features
-
-The following features are potential directions for future development:
-
-- Additional Image Filtering Techniques
 
 ---
 
 ## 📅 Development Roadmap
 
-- [x] Project setup
-- [x] GitHub repository
-- [x] Streamlit application
-- [x] Image upload
-- [x] Grayscale conversion
-- [x] Histogram analysis
-- [x] Image thresholding
-- [x] Gaussian blur
-- [x] Canny edge detection
-- [x] Interactive sidebar controls
-- [x] Image navigation
-- [x] Sobel edge detection
-- [x] Laplacian edge detection
-- [x] Morphological operations
-- [x] Contour detection
-- [x] RGB / HSV analysis
-- [x] Color thresholding
+- [x] Project setup, GitHub repository, Streamlit application
+- [x] Image upload and grayscale conversion
+- [x] Histogram analysis and image thresholding
+- [x] Gaussian blur, Canny / Sobel / Laplacian edge detection
+- [x] Interactive sidebar controls and image navigation
+- [x] Morphological operations and contour detection
+- [x] RGB / HSV analysis and color thresholding
 - [x] Feature detection (Harris corners, ORB keypoints)
-- [x] Face detection (Haar Cascade)
-- [x] Object detection (Haar Cascade, multi-class)
+- [x] Face detection and multi-class object detection (Haar Cascade)
+- [x] Modular architecture with a stage registry and declarative sidebar
+- [x] Test suite and continuous integration
+- [x] Otsu and adaptive thresholding
+- [x] Median and bilateral filtering
+- [x] Histogram equalization and CLAHE
+- [x] Hough line and circle detection
+- [x] Color histogram
+- [x] YOLOv8 object detection
+- [x] MediaPipe face mesh, hands and pose
 
-All originally planned features are complete. 🎉
+### 🔭 Possible next steps
+
+- Side-by-side / before-after comparison view
+- Stages that take two images: template matching, ORB feature matching, image blending
+- Segmentation: watershed, K-means color quantization, GrabCut
+- Webcam and video processing
+- Training and running a custom model instead of only pre-trained ones
 
 ---
 
@@ -147,6 +192,8 @@ All originally planned features are complete. 🎉
 - 🔢 **NumPy**
 - 🖼️ **Pillow**
 - 📊 **Matplotlib**
+- 🤖 **Ultralytics YOLOv8** *(optional)*
+- ✋ **MediaPipe** *(optional)*
 
 ---
 
@@ -155,28 +202,49 @@ All originally planned features are complete. 🎉
 ```text
 computer-vision-lab/
 │
-├── app.py
-├── requirements.txt
+├── app.py                    # Streamlit entry point / UI shell
+├── requirements.txt          # Core dependencies
+├── requirements-ml.txt       # Optional: YOLO + MediaPipe
+├── requirements-dev.txt      # Optional: pytest
+├── pytest.ini
 ├── README.md
 ├── .gitignore
 │
-├── images/
-├── modules/
+├── .github/workflows/        # CI: runs the test suite on every push
+├── images/                   # Sample images used for local testing
+├── modules/                  # All processing logic, one file per topic
 │   ├── __init__.py
+│   ├── stages.py             # Stage registry: metadata + handler per stage
+│   ├── controls.py           # Declarative sidebar schema
 │   ├── io_utils.py
 │   ├── basic_ops.py
+│   ├── thresholding.py
+│   ├── filters.py
+│   ├── enhancement.py
 │   ├── edges.py
 │   ├── morphology.py
 │   ├── contours.py
+│   ├── hough.py
 │   ├── color_analysis.py
 │   ├── color_threshold.py
 │   ├── feature_detection.py
 │   ├── face_detection.py
 │   ├── object_detection.py
+│   ├── deep_detection.py     # YOLO + MediaPipe (optional dependencies)
 │   └── histogram.py
-├── outputs/
-└── pages/
+├── tests/                    # pytest suite
+├── models/                   # Downloaded model weights (git-ignored)
+├── assets/                   # Static UI assets
+└── results/                  # Locally saved processing results
 ```
+
+### Adding a new stage
+
+1. Write the operation in a module under `modules/` (or add it to a fitting one).
+2. Add a handler and a `Stage(...)` entry in `modules/stages.py`.
+3. If it needs parameters, add `Control(...)` entries to `modules/controls.py`.
+
+The sidebar, the params dict, navigation, the download button and the tests that run every handler all pick it up automatically.
 
 ---
 
