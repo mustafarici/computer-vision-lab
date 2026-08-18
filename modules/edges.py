@@ -2,7 +2,8 @@
 
 import cv2
 import numpy as np
-import streamlit as st
+
+from modules.caching import cache_data
 
 # Caches are bounded so that sweeping a slider can't grow memory
 # without limit — each distinct parameter combination would otherwise
@@ -11,14 +12,14 @@ import streamlit as st
 MAX_CACHE_ENTRIES = 8
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_canny(blurred: np.ndarray, lower: int, upper: int) -> np.ndarray:
     """Cached: ~21 ms per run, comfortably above the ~2 ms cache overhead."""
 
     return cv2.Canny(blurred, lower, upper)
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_sobel(grayscale: np.ndarray, ksize: int) -> np.ndarray:
     """Combined Sobel gradient magnitude (x and y), normalized to uint8.
 

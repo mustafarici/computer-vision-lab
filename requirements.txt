@@ -5,8 +5,15 @@
 # cv2.CascadeClassifier outright, which is what the face and object
 # detection stages are built on, so an uncapped ">=4.13" quietly
 # installed 5.0 in CI and broke every Haar Cascade import.
+#
+# Headless OpenCV, not the regular build: this app is a web server and
+# never opens a window (no imshow, no namedWindow, no waitKey), so the
+# GUI half of opencv-python is dead weight that drags in libGL, glib
+# and GTK. Dropping it means no apt packages are needed to run the app
+# at all — which also removes the CI step that has to reach an Ubuntu
+# mirror before a single test can run.
 streamlit>=1.61,<2
 pillow>=12.2,<13
-opencv-python>=4.13,<5
+opencv-python-headless>=4.13,<5
 numpy>=2.4,<3
 matplotlib>=3.10,<4

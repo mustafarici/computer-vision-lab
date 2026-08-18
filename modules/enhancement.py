@@ -11,7 +11,8 @@ local contrast without amplifying noise as aggressively.
 
 import cv2
 import numpy as np
-import streamlit as st
+
+from modules.caching import cache_data
 
 MAX_CACHE_ENTRIES = 8
 
@@ -22,7 +23,7 @@ def apply_histogram_equalization(grayscale: np.ndarray) -> np.ndarray:
     return cv2.equalizeHist(grayscale)
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_clahe(
     grayscale: np.ndarray,
     clip_limit: float,

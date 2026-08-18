@@ -1,0 +1,33 @@
+# Runs the same checks CI runs, but before the commit exists, so a
+# missing import or an unused variable is caught in a second rather
+# than after a five-minute round trip through GitHub Actions.
+#
+# Install once per clone:
+#
+#   pip install -r requirements-dev.txt
+#   pre-commit install
+#
+# Run against everything at any time:
+#
+#   pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      # A committed model file or a full-resolution photo is painful to
+      # remove from history later.
+      - id: check-added-large-files
+        args: ["--maxkb=2048"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        # No ruff-format hook on purpose; see ruff.toml.

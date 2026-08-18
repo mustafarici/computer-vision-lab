@@ -18,9 +18,11 @@ from modules.deep_detection import (
     YOLO_MODELS,
     _as_rgb,
     _class_color,
+    _native_library_error,
     apply_mediapipe_landmarks,
     apply_yolo_detection,
     download_model,
+    is_mediapipe_available,
     is_yolo_available,
 )
 
@@ -165,6 +167,69 @@ STAGE_MEDIAPIPE = stages.STAGES["MediaPipe Landmarks"]
 
 
 # ==================================================
+# MISSING SYSTEM LIBRARIES
+# ==================================================
+#
+# Installing mediapipe with pip succeeds on a machine that has no
+# OpenGL ES runtime; the failure appears much later as a bare OSError
+# out of ctypes when the first model is created. OSError is not an
+# ImportError and not a RuntimeError, so without this handling one
+# missing .so takes the entire app down instead of one stage.
+
+
+def test_native_library_error_is_catchable_as_a_runtime_error():
+    error = _native_library_error(
+        "mediapipe", OSError("libGLESv2.so.2: cannot open shared object file")
+    )
+
+    # This is what makes the stage handlers' except clause catch it.
+    assert isinstance(error, RuntimeError)
+
+
+def test_native_library_error_names_the_actual_fix():
+    error = _native_library_error("mediapipe", OSError("libGLESv2.so.2"))
+
+    message = str(error)
+
+    assert "libgles2" in message
+    assert "system library" in message
+    # The original error is kept, so the message isn't just advice.
+    assert "libGLESv2.so.2" in message
+
+
+@pytest.mark.parametrize(
+    "stage,function_name",
+    [
+        (STAGE_MEDIAPIPE, "apply_mediapipe_landmarks"),
+        (STAGE_YOLO, "apply_yolo_detection"),
+    ],
+)
+def test_a_missing_system_library_degrades_to_a_message(
+    monkeypatch, color_image, stage, function_name
+):
+    """The stage explains itself; it does not bring the page down."""
+
+    def explode(*args, **kwargs):
+        raise _native_library_error("mediapipe", OSError("libGLESv2.so.2"))
+
+    monkeypatch.setattr(stages, "is_yolo_available", lambda: True)
+    monkeypatch.setattr(stages, "is_mediapipe_available", lambda: True)
+    monkeypatch.setattr(stages, function_name, explode)
+
+    params = {
+        "yolo_model": next(iter(YOLO_MODELS)),
+        "yolo_confidence": 0.25,
+        "yolo_iou": 0.45,
+        "mediapipe_task": next(iter(MEDIAPIPE_TASKS)),
+    }
+
+    result = stage.handler(color_image, None, params)
+
+    assert result.image is None
+    assert "libgles2" in result.extra_info
+
+
+# ==================================================
 # REAL INFERENCE
 # ==================================================
 
@@ -202,3 +267,45 @@ def test_yolo_handles_a_grayscale_image(grayscale_only_image):
 
     assert canvas.shape == (*grayscale_only_image.shape, 3)
     assert count >= 0
+
+
+@pytest.mark.skipif(
+    not is_mediapipe_available(), reason="mediapipe not installed"
+)
+@pytest.mark.skipif(not SAMPLE_IMAGE.exists(), reason="sample image missing")
+@pytest.mark.parametrize("task_name", list(MEDIAPIPE_TASKS))
+def test_mediapipe_runs_every_task_end_to_end(task_name):
+    """
+    Load the real model, run it on a real photo, draw the result.
+
+    The assertions are deliberately about structure rather than about
+    how many faces MediaPipe ought to find in this particular
+    photograph — the failure this guards against is the whole Tasks API
+    path breaking (MediaPipe removed the old `mp.solutions` API in
+    0.10.30, which is exactly the kind of change that silently invalidates
+    this module), not a drop in detection quality.
+    """
+
+    from PIL import Image
+
+    image = np.array(Image.open(SAMPLE_IMAGE).convert("RGB"))
+
+    try:
+        canvas, count, summary = apply_mediapipe_landmarks(image, task_name)
+
+    except RuntimeError as error:
+        # The .task bundles are downloaded on first use. No network,
+        # no test — but say so rather than reporting a pass.
+        pytest.skip(f"MediaPipe model unavailable: {error}")
+
+    assert canvas.shape == image.shape
+    assert canvas.dtype == np.uint8
+    assert count >= 0
+    assert summary
+
+    if count > 0:
+        # Landmarks were drawn onto a copy, never the caller's array.
+        assert not np.array_equal(canvas, image)
+        assert np.array_equal(
+            image, np.array(Image.open(SAMPLE_IMAGE).convert("RGB"))
+        )

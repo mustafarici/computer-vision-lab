@@ -29,6 +29,8 @@ import cv2
 import numpy as np
 import streamlit as st
 
+from modules.image_utils import to_rgb
+
 # Downloaded model files live here (git-ignored). MediaPipe, unlike
 # ultralytics, has no built-in downloader — the caller supplies a path.
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
@@ -36,6 +38,32 @@ MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
 class MissingDependencyError(RuntimeError):
     """Raised when a stage needs an optional package that isn't installed."""
+
+
+def _native_library_error(package: str, error: Exception) -> MissingDependencyError:
+    """
+    Turn a failed native load into an explanation.
+
+    `pip install mediapipe` succeeds on a machine with no OpenGL
+    runtime; the failure only surfaces later, as a bare
+    `OSError: libGLESv2.so.2: cannot open shared object file` from deep
+    inside ctypes, when the first landmark model is created. That is an
+    OSError rather than an ImportError, so nothing above catches it and
+    a missing system package takes the whole page down instead of one
+    stage.
+
+    Raising it as a MissingDependencyError (a RuntimeError) puts it back
+    on the path the stage handlers already handle, with a message that
+    names the actual fix.
+    """
+
+    return MissingDependencyError(
+        f"'{package}' is installed, but its native libraries couldn't be "
+        f"loaded: {error}. This is a missing system library rather than a "
+        "missing Python package — on Debian/Ubuntu, install `libgl1`, "
+        "`libglib2.0-0`, `libegl1` and `libgles2` (the same list as "
+        "packages.txt)."
+    )
 
 
 # ==================================================
@@ -73,9 +101,13 @@ def load_yolo_model(weights: str):
             "Install it with: pip install -r requirements-ml.txt"
         )
 
-    from ultralytics import YOLO
+    try:
+        from ultralytics import YOLO
 
-    return YOLO(weights)
+        return YOLO(weights)
+
+    except OSError as error:
+        raise _native_library_error("ultralytics", error) from error
 
 
 def _class_color(class_id: int) -> tuple:
@@ -127,13 +159,10 @@ def _draw_label(canvas: np.ndarray, text: str, x: int, y: int, color: tuple):
     )
 
 
-def _as_rgb(image_np: np.ndarray) -> np.ndarray:
-    """Normalize any supported input to a 3-channel RGB array."""
-
-    if image_np.ndim == 2:
-        return cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
-
-    return image_np[:, :, :3]
+# Kept as a module-level name because the surrounding code (and its
+# tests) refer to it; the implementation moved to modules/image_utils.py
+# once the comparison and pipeline views needed the same conversion.
+_as_rgb = to_rgb
 
 
 def apply_yolo_detection(
@@ -288,8 +317,12 @@ def load_mediapipe_landmarker(task_name: str):
 
     spec = MEDIAPIPE_TASKS[task_name]
 
-    from mediapipe.tasks import python as mp_python
-    from mediapipe.tasks.python import vision
+    try:
+        from mediapipe.tasks import python as mp_python
+        from mediapipe.tasks.python import vision
+
+    except OSError as error:
+        raise _native_library_error("mediapipe", error) from error
 
     model_path = download_model(
         spec["url"], MODELS_DIR / spec["filename"]
@@ -303,7 +336,11 @@ def load_mediapipe_landmarker(task_name: str):
         running_mode=vision.RunningMode.IMAGE,
     )
 
-    return task_class.create_from_options(options)
+    try:
+        return task_class.create_from_options(options)
+
+    except OSError as error:
+        raise _native_library_error("mediapipe", error) from error
 
 
 def _connection_edges(connections_name: str):
@@ -359,7 +396,11 @@ def apply_mediapipe_landmarks(image_np: np.ndarray, task_name: str):
     spec = MEDIAPIPE_TASKS[task_name]
     landmarker = load_mediapipe_landmarker(task_name)
 
-    import mediapipe as mp
+    try:
+        import mediapipe as mp
+
+    except OSError as error:
+        raise _native_library_error("mediapipe", error) from error
 
     rgb = _as_rgb(image_np)
 

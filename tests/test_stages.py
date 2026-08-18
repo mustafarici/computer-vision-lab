@@ -12,7 +12,7 @@ import pytest
 from modules.controls import default_params
 from modules.stages import STAGES, StageResult
 
-EXPECTED_STAGE_COUNT = 32
+EXPECTED_STAGE_COUNT = 33
 
 # Built from the sidebar schema rather than restated here, so a
 # parameter added to modules/controls.py is automatically exercised
@@ -106,4 +106,5 @@ def test_grayscale_free_stages_are_the_color_ones():
         "Median Filter",
         "Bilateral Filter",
         "Color Histogram",
+        "Custom Pipeline",
     }

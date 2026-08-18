@@ -9,7 +9,8 @@ from "these pixels are edges" to "there is a line from here to there".
 
 import cv2
 import numpy as np
-import streamlit as st
+
+from modules.caching import cache_data
 
 MAX_CACHE_ENTRIES = 8
 
@@ -18,7 +19,7 @@ def _color_canvas(grayscale: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(grayscale, cv2.COLOR_GRAY2RGB)
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_hough_lines(
     grayscale: np.ndarray,
     canny_lower: int,
@@ -58,7 +59,7 @@ def apply_hough_lines(
     return canvas, len(segments)
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_hough_circles(
     grayscale: np.ndarray,
     min_distance: int,

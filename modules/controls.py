@@ -18,12 +18,14 @@ lets the sidebar open the section belonging to whatever stage is on
 screen and collapse the rest.
 """
 
-from typing import Any, Callable, NamedTuple, Optional
+from collections.abc import Callable
+from typing import Any, NamedTuple
 
 import streamlit as st
 
 from modules.deep_detection import MEDIAPIPE_TASKS, YOLO_MODELS
 from modules.object_detection import OBJECT_CASCADES
+from modules.pipeline import OPERATIONS
 
 
 class Control(NamedTuple):
@@ -31,13 +33,13 @@ class Control(NamedTuple):
 
     key: str
     label: str
-    kind: str  # "slider" | "range" | "select"
+    kind: str  # "slider" | "range" | "select" | "multiselect"
     default: Any
     help: str
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    step: Optional[float] = None
-    options: Optional[tuple] = None
+    min_value: float | None = None
+    max_value: float | None = None
+    step: float | None = None
+    options: tuple | None = None
     # Optional heading rendered above this control, used to group
     # several related controls inside one section.
     subheader: str = ""
@@ -54,10 +56,10 @@ class Section(NamedTuple):
     caption: str = ""
     # Optional validation run after the section renders; returns a
     # warning string, or None when the values are fine.
-    warning: Optional[Callable[[dict], Optional[str]]] = None
+    warning: Callable[[dict], str | None] | None = None
 
 
-def _canny_threshold_warning(params: dict) -> Optional[str]:
+def _canny_threshold_warning(params: dict) -> str | None:
     if params["lower_threshold"] > params["upper_threshold"]:
         return "Lower threshold is higher than upper threshold."
     return None
@@ -747,6 +749,36 @@ SECTIONS: tuple = (
             ),
         ),
     ),
+    Section(
+        title="🧬 Custom Pipeline",
+        categories=frozenset({"Pipeline"}),
+        caption=(
+            "Steps run in the order you click them. Each step's own "
+            "settings come from the section it belongs to above — "
+            "change the blur here by changing it under Basic Processing."
+        ),
+        controls=(
+            Control(
+                key="pipeline_steps",
+                label="Steps",
+                kind="multiselect",
+                # A chain that does something worth looking at
+                # immediately, and that demonstrates the automatic
+                # grayscale/threshold insertion without explaining it.
+                default=(
+                    "CLAHE",
+                    "Otsu Threshold",
+                    "Opening",
+                    "Contour Detection",
+                ),
+                options=tuple(OPERATIONS.keys()),
+                help=(
+                    "Pick operations in the order you want them "
+                    "applied. Remove one with the × on its chip."
+                ),
+            ),
+        ),
+    ),
 )
 
 
@@ -759,7 +791,15 @@ def default_params() -> dict:
     """
 
     return {
-        control.key: control.default
+        # Defaults are declared as tuples so the schema stays
+        # immutable, but st.multiselect hands back a list — match what
+        # the widget actually returns, or the tests that build params
+        # from here would be testing a shape the app never produces.
+        control.key: (
+            list(control.default)
+            if control.kind == "multiselect"
+            else control.default
+        )
         for section in SECTIONS
         for control in section.controls
     }
@@ -771,11 +811,21 @@ def _render_control(control: Control):
     if control.subheader:
         st.subheader(control.subheader)
 
-    common = dict(
-        label=control.label,
-        help=control.help,
-        key=control.key,
-    )
+    common = {
+        "label": control.label,
+        "help": control.help,
+        "key": control.key,
+    }
+
+    if control.kind == "multiselect":
+        # Streamlit returns the selections in the order they were
+        # clicked, which is what makes this usable as an ordered
+        # pipeline rather than just a set of steps.
+        return st.multiselect(
+            options=list(control.options),
+            default=list(control.default),
+            **common,
+        )
 
     if control.kind == "select":
         options = list(control.options)
@@ -791,12 +841,12 @@ def _render_control(control: Control):
 
     # Both plain and range sliders are st.slider; passing a tuple as
     # the default value is what makes Streamlit render a range.
-    slider_kwargs = dict(
-        min_value=control.min_value,
-        max_value=control.max_value,
-        value=control.default,
+    slider_kwargs = {
+        "min_value": control.min_value,
+        "max_value": control.max_value,
+        "value": control.default,
         **common,
-    )
+    }
 
     if control.step is not None:
         slider_kwargs["step"] = control.step
@@ -804,20 +854,60 @@ def _render_control(control: Control):
     return st.slider(**slider_kwargs)
 
 
-def render_sidebar(active_category: str = "") -> dict:
+def active_categories_for(stage_category: str, params: dict) -> frozenset:
+    """
+    Which sidebar sections are worth having open right now.
+
+    Normally that's just the section belonging to the stage on screen.
+    The Custom Pipeline stage is the exception: it has one control of
+    its own and borrows every other setting from the sections the
+    chosen steps came from, so "the relevant controls" depends on what
+    the user has put in the chain. Without this, building a chain means
+    being told that the blur is configured somewhere else and going to
+    look for it.
+    """
+
+    if stage_category != "Pipeline":
+        return frozenset({stage_category})
+
+    categories = {stage_category}
+
+    # Called before the sidebar renders, so on the very first load the
+    # widget has no value in session state yet — fall back to the
+    # declared default, which is what it is about to show.
+    steps = params.get("pipeline_steps")
+
+    if not steps:
+        steps = default_params()["pipeline_steps"]
+
+    for step in steps:
+        operation = OPERATIONS.get(step)
+
+        if operation is not None and operation.settings_category:
+            categories.add(operation.settings_category)
+
+    return frozenset(categories)
+
+
+def render_sidebar(active_categories: object = "") -> dict:
     """
     Render every control section into the sidebar and return the
     collected values as the params dict that stage handlers read.
 
-    The section(s) relevant to `active_category` are expanded and the
-    rest are collapsed, so the controls that affect what's currently on
-    screen are the ones in view.
+    Sections matching `active_categories` (one category or several) are
+    expanded and the rest are collapsed, so the controls that affect
+    what's currently on screen are the ones in view.
     """
+
+    if isinstance(active_categories, str):
+        active_categories = frozenset({active_categories})
+    else:
+        active_categories = frozenset(active_categories)
 
     params: dict = {}
 
     for section in SECTIONS:
-        is_relevant = active_category in section.categories
+        is_relevant = bool(active_categories & section.categories)
 
         with st.expander(section.title, expanded=is_relevant):
 

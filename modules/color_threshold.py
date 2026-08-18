@@ -2,8 +2,8 @@
 
 import cv2
 import numpy as np
-import streamlit as st
 
+from modules.caching import cache_data
 
 # The H/S/V range sliders have an enormous combined parameter space
 # and this function returns two full-size images (~12 MB per entry),
@@ -11,7 +11,7 @@ import streamlit as st
 MAX_CACHE_ENTRIES = 6
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_color_threshold(
     image_np: np.ndarray,
     hue_range: tuple,

@@ -13,3 +13,14 @@
 # mp.solutions API in 0.10.30, so its minor versions do break things.
 ultralytics>=8.3,<9
 mediapipe>=0.10.30,<0.11
+
+# Not used directly — this is mediapipe's own dependency, listed here
+# only to put an upper bound on it.
+#
+# opencv-contrib-python installs into the same `cv2` package as
+# opencv-python and overwrites it, so leaving it unpinned quietly
+# undoes the `<5` cap in requirements.txt: pip resolves 5.0, cv2 loses
+# CascadeClassifier, and the Haar Cascade stages break the moment the
+# optional dependencies are installed. Keep this in step with the
+# opencv-python pin.
+opencv-contrib-python>=4.13,<5

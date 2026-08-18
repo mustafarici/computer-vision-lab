@@ -1,0 +1,13 @@
+# Applies both locally and on Streamlit Community Cloud, so the
+# deployed app looks the same as the one being developed against.
+
+[theme]
+base = "dark"
+primaryColor = "#4c8bf5"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+# Video clips are the largest thing this app accepts.
+maxUploadSize = 200

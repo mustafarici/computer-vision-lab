@@ -1,13 +1,15 @@
 """Image loading, normalization, downsampling, and export helpers."""
 
 import io
+import os
 from datetime import datetime
 from pathlib import Path
 
 import cv2
 import numpy as np
-import streamlit as st
 from PIL import Image
+
+from modules.caching import cache_data
 
 # Images with a long side above this many pixels are downscaled
 # before processing, so Haar Cascade / Harris / Canny etc. don't
@@ -26,7 +28,7 @@ RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 MAX_CACHE_ENTRIES = 8
 
 
-@st.cache_data(show_spinner=False, max_entries=3)
+@cache_data(show_spinner=False, max_entries=3)
 def load_image(file_bytes: bytes):
     """
     Decode uploaded bytes into a normalized RGB/RGBA/L numpy array,
@@ -72,7 +74,7 @@ def load_image(file_bytes: bytes):
     return image_np, resize_info
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def get_image_download_bytes(image_np: np.ndarray) -> bytes:
     """
     Encode an RGB/RGBA/grayscale numpy image array as PNG bytes,
@@ -91,6 +93,27 @@ def get_image_download_bytes(image_np: np.ndarray) -> bytes:
         raise RuntimeError("Failed to encode image to PNG.")
 
     return buffer.tobytes()
+
+
+def is_local_run() -> bool:
+    """
+    True when the app is running on the machine the user is sitting at.
+
+    "Save a copy to results/" only makes sense there. On a hosted
+    deployment the same button writes into the server's application
+    directory, where the user can't reach the file, the filesystem is
+    ephemeral anyway, and anyone passing by can fill the disk one click
+    at a time — so the button is hidden instead.
+
+    Detection is deliberately conservative and overridable: Streamlit
+    Community Cloud checks out the repository under /mount/src, and
+    CVLAB_HOSTED=1 forces the hosted behaviour anywhere else.
+    """
+
+    if os.environ.get("CVLAB_HOSTED", "").strip():
+        return False
+
+    return not str(Path(__file__).resolve()).startswith("/mount/src")
 
 
 def save_result_locally(

@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 import streamlit as st
 
+from modules.caching import cache_data
+
 # Maps a friendly display name to the bundled cascade filename.
 OBJECT_CASCADES = {
     "Eyes": "haarcascade_eye.xml",
@@ -42,7 +44,7 @@ def load_object_cascade(cascade_filename: str) -> cv2.CascadeClassifier:
 MAX_CACHE_ENTRIES = 8
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_object_detection(
     image_np: np.ndarray,
     grayscale: np.ndarray,

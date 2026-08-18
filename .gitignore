@@ -13,8 +13,12 @@ env/
 # VS Code
 .vscode/
 
-# Streamlit cache
-.streamlit/
+# Streamlit
+#
+# .streamlit/config.toml is committed deliberately — it's what makes
+# the deployed app look like the local one. Only the secrets file is
+# private.
+.streamlit/secrets.toml
 
 # Locally saved processing results (see results/README.md)
 results/*.png
@@ -23,3 +27,8 @@ results/*.jpg
 # Downloaded ML model weights (fetched on first use)
 models/
 *.pt
+
+# Scratch folder for files that can't be deleted in place on some
+# mounted filesystems (stale git lock artifacts end up here). Never
+# part of the project.
+_to_delete/
