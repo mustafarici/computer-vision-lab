@@ -12,7 +12,7 @@
 # Capped below the next major/minor release: MediaPipe removed its
 # mp.solutions API in 0.10.30, so its minor versions do break things.
 ultralytics>=8.3,<9
-mediapipe>=0.10.30,<0.11
+mediapipe>=1.0.1,<1.1
 
 # Not used directly — this is mediapipe's own dependency, listed here
 # only to put an upper bound on it.
