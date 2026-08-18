@@ -1,2 +1,4 @@
 # Development / CI only — not needed to run the app.
 pytest>=8.0,<10
+ruff>=0.9,<1
+pre-commit>=4.0,<5

@@ -1,8 +1,16 @@
 # 🧪 Computer Vision Lab
 
-An interactive computer vision and image processing laboratory built with **Python**, **OpenCV**, **NumPy**, **Pillow**, **Matplotlib**, and **Streamlit** — with optional deep-learning stages powered by **YOLOv8** and **MediaPipe**.
+[![tests](https://github.com/mustafarici/computer-vision-lab/actions/workflows/tests.yml/badge.svg)](https://github.com/mustafarici/computer-vision-lab/actions/workflows/tests.yml)
 
-This project explores computer vision techniques through an interactive web application: 32 processing stages, from a grayscale conversion up to a neural network detecting 80 object classes, each with its own controls and a short explanation of what it does and why.
+An interactive computer vision and image processing laboratory built with **Python**, **OpenCV**, **NumPy**, **Pillow**, **Matplotlib** and **Streamlit** — with optional deep-learning stages powered by **YOLOv8** and **MediaPipe**.
+
+33 processing stages, from a grayscale conversion up to a neural network detecting 80 object classes, each with its own controls and a short explanation of what it does and why. Feed it a photo, a webcam snapshot, or a video clip.
+
+<!-- Once deployed to Streamlit Community Cloud (see "Deploying" below),
+     replace this comment with:
+     **▶️ [Try it live](https://your-app-name.streamlit.app)** -->
+
+![The app with an image loaded](assets/screenshot-app.jpg)
 
 ---
 
@@ -17,6 +25,7 @@ The two deep-learning stages are optional, because they pull in PyTorch and Medi
 
 ```bash
 pip install -r requirements-ml.txt
+python scripts/fetch_models.py   # optional: download the weights up front
 ```
 
 Without them the app runs exactly as before — those two stages just show an install hint instead of a result.
@@ -25,15 +34,37 @@ Without them the app runs exactly as before — those two stages just show an in
 
 ## ✨ Features
 
-### 📷 Image Input
+### 📥 Three ways in
 
-- Upload JPG, JPEG, and PNG images
-- Automatic downscaling of large images (long side capped at 1920px, aspect ratio preserved) to keep processing fast
-- Display of original vs. resized resolution when downscaling occurs
-- Display of image resolution and channel information
-- Automatic detection of color vs. grayscale-only input
+**Image** — upload a JPG or PNG. Large images are downscaled (long side capped at 1920px, aspect preserved) so nothing chokes on a 20MP photo, and both resolutions are reported when that happens.
 
-### 🖼️ Processing Stages
+**Camera** — take a snapshot from the webcam and process it in place. Nothing is uploaded anywhere; the frame is handled in memory.
+
+**Video** — run any stage over every frame of a clip. A still image tells you what an operation does; a video tells you whether it holds up — detection that flickers between frames, or a threshold tuned for exactly one lighting condition, is invisible in a single frame and obvious in a few seconds of footage.
+
+![Processing a video clip frame by frame](assets/screenshot-video.jpg)
+
+Frame size, frame count and sampling stride are all capped, and the exact plan ("processing 240 of 1,431 frames, covering the first 9.6s") is stated *before* any work starts rather than discovered afterwards.
+
+### 🔍 Before / after / difference
+
+Every stage that returns an image the same size as the input can be viewed three ways: the result on its own, the original next to it, or the per-pixel difference between them.
+
+![Side-by-side comparison of the original and Canny edges](assets/screenshot-side-by-side.jpg)
+
+The difference view also quantifies what changed — the share of pixels the stage touched, and by how much on average. Those two numbers say different things: a contrast tweak nudges every pixel a little, a threshold rewrites most of them completely.
+
+![The difference view showing what CLAHE changed](assets/screenshot-difference.jpg)
+
+### 🧬 Custom pipelines
+
+Every other stage starts from the original image, which is the right shape for learning one operation at a time and the wrong shape for the moment you want to ask "what if I equalize the contrast *first*, then threshold, then close the gaps?"
+
+The Custom Pipeline stage lets you chain operations in whatever order you click them. Any grayscale conversion or threshold a step needs is inserted automatically, and the chain that actually ran is printed underneath the result — so there are no invalid combinations to discover, and no guessing about what the app silently did on your behalf.
+
+![A custom chain: CLAHE, Otsu threshold, opening, contour detection](assets/screenshot-pipeline.jpg)
+
+### 🖼️ Processing stages
 
 **Basic** — Grayscale conversion, fixed-threshold binarization, Gaussian blur
 
@@ -59,9 +90,13 @@ Without them the app runs exactly as before — those two stages just show an in
 
 **Deep Learning** *(optional)* — YOLOv8 object detection across 80 COCO classes with confidence and NMS controls; MediaPipe landmarks for a 468-point face mesh, 21-point hand skeletons, or 33-point body pose
 
+![YOLOv8 finding all 18 people in a group photo](assets/screenshot-yolo.jpg)
+
 **Histogram Analysis** — Grayscale histogram with mean/median/min/max statistics, and a per-channel color histogram
 
-### 🎛️ Interactive Controls
+**Pipeline** — the chain builder described above
+
+### 🎛️ Interactive controls
 
 Controls are declared as data in `modules/controls.py` and grouped into collapsible sidebar sections. The section belonging to whatever stage is on screen opens automatically; the rest stay collapsed, so you're not scrolling past Hough parameters while tuning a blur.
 
@@ -93,6 +128,8 @@ Every parameter updates the result immediately. Stages that need a color image s
 
 - **Bounded caches**: every cache sets `max_entries`, so dragging a slider can't accumulate one full-size image per position. (Previously, sweeping the 0–255 threshold slider alone could cache ~500 MB of images.)
 
+- **Bounded video work**: frame size, frame count and stride are capped before processing rather than after, so a long clip degrades into a shorter preview instead of an unresponsive page.
+
 - **No figure leak**: histograms are built with matplotlib's object-oriented `Figure` rather than `plt.subplots()`, which would keep every figure ever rendered alive in pyplot's global registry — one per rerun.
 
 - **Models loaded once**: Haar Cascades, YOLO weights and MediaPipe models are cached with `@st.cache_resource`, so they're read once per session rather than on every interaction.
@@ -106,9 +143,23 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-162 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
+557 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, video framing and encoding, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
 
-Tests run on every push via GitHub Actions (`.github/workflows/tests.yml`) against Python 3.11 and 3.13.
+The pipeline builder is tested over **every ordered pair of operations**, because "does this chain work" is a question about combinations, not about individual functions — an operation that quietly rejects a 3-channel array is only wrong in the orderings that hand it one.
+
+CI runs three jobs on every push:
+
+| Job | What it covers |
+|---|---|
+| `tests (core deps)` | Python 3.11 and 3.13, base requirements only |
+| `tests (optional ML deps)` | The same suite with `ultralytics` and `mediapipe` really installed, so the YOLO and MediaPipe code paths run for real rather than only their "not installed" branch |
+| `ruff` | Lint |
+
+Locally, the same lint runs before each commit:
+
+```bash
+pre-commit install
+```
 
 ---
 
@@ -148,8 +199,22 @@ Erosion    Dilation      Opening      Closing
 Contour Detection
 
 (The original image also feeds YOLO and MediaPipe directly — neural
-networks take the color image, not a preprocessed one.)
+networks take the color image, not a preprocessed one. The Custom
+Pipeline stage ignores this diagram entirely: it runs whatever chain
+you build, in whatever order you build it.)
 ```
+
+---
+
+## ☁️ Deploying
+
+The repository is ready for [Streamlit Community Cloud](https://share.streamlit.io) as-is:
+
+- `requirements.txt` pins every dependency below its next major release
+- `packages.txt` installs the apt packages OpenCV and the video encoder need (`libgl1`, `libglib2.0-0`, `ffmpeg`)
+- `.streamlit/config.toml` gives the deployed app the same theme as the local one
+
+Point Streamlit Cloud at this repository with `app.py` as the entry point. The optional ML dependencies are deliberately left out of `requirements.txt`, so the deployed app starts fast and the two deep-learning stages show their install hint; move them across if you want YOLO in the hosted version too.
 
 ---
 
@@ -173,13 +238,16 @@ networks take the color image, not a preprocessed one.)
 - [x] Color histogram
 - [x] YOLOv8 object detection
 - [x] MediaPipe face mesh, hands and pose
+- [x] Before / after / difference comparison
+- [x] Chained custom pipelines
+- [x] Video and webcam input
+- [x] Linting, pre-commit hooks, and CI coverage for the optional ML stages
 
 ### 🔭 Possible next steps
 
-- Side-by-side / before-after comparison view
 - Stages that take two images: template matching, ORB feature matching, image blending
 - Segmentation: watershed, K-means color quantization, GrabCut
-- Webcam and video processing
+- Saving and sharing a custom pipeline as a preset
 - Training and running a custom model instead of only pre-trained ones
 
 ---
@@ -205,17 +273,28 @@ computer-vision-lab/
 ├── app.py                    # Streamlit entry point / UI shell
 ├── requirements.txt          # Core dependencies
 ├── requirements-ml.txt       # Optional: YOLO + MediaPipe
-├── requirements-dev.txt      # Optional: pytest
+├── requirements-dev.txt      # Optional: pytest, ruff, pre-commit
+├── packages.txt              # apt packages for Streamlit Cloud
+├── ruff.toml
 ├── pytest.ini
+├── .pre-commit-config.yaml
 ├── README.md
 ├── .gitignore
 │
-├── .github/workflows/        # CI: runs the test suite on every push
+├── .github/workflows/        # CI: tests, optional-ML tests, lint
+├── .streamlit/               # Theme and server config
+├── assets/                   # Screenshots used by this README
 ├── images/                   # Sample images used for local testing
+├── scripts/
+│   └── fetch_models.py       # Pre-download the optional model weights
 ├── modules/                  # All processing logic, one file per topic
 │   ├── __init__.py
 │   ├── stages.py             # Stage registry: metadata + handler per stage
 │   ├── controls.py           # Declarative sidebar schema
+│   ├── pipeline.py           # Chainable operations + the chain runner
+│   ├── compare.py            # Before/after and difference views
+│   ├── video.py              # Frame-by-frame video processing
+│   ├── image_utils.py        # Shared shape/representation helpers
 │   ├── io_utils.py
 │   ├── basic_ops.py
 │   ├── thresholding.py
@@ -234,7 +313,6 @@ computer-vision-lab/
 │   └── histogram.py
 ├── tests/                    # pytest suite
 ├── models/                   # Downloaded model weights (git-ignored)
-├── assets/                   # Static UI assets
 └── results/                  # Locally saved processing results
 ```
 
@@ -243,8 +321,9 @@ computer-vision-lab/
 1. Write the operation in a module under `modules/` (or add it to a fitting one).
 2. Add a handler and a `Stage(...)` entry in `modules/stages.py`.
 3. If it needs parameters, add `Control(...)` entries to `modules/controls.py`.
+4. If it makes sense as a chain step, add an `Operation(...)` entry to `modules/pipeline.py`.
 
-The sidebar, the params dict, navigation, the download button and the tests that run every handler all pick it up automatically.
+The sidebar, the params dict, navigation, the comparison views, the video mode, the download button and the tests that run every handler all pick it up automatically.
 
 ---
 

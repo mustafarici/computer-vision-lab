@@ -29,6 +29,8 @@ import cv2
 import numpy as np
 import streamlit as st
 
+from modules.image_utils import to_rgb
+
 # Downloaded model files live here (git-ignored). MediaPipe, unlike
 # ultralytics, has no built-in downloader — the caller supplies a path.
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
@@ -127,13 +129,10 @@ def _draw_label(canvas: np.ndarray, text: str, x: int, y: int, color: tuple):
     )
 
 
-def _as_rgb(image_np: np.ndarray) -> np.ndarray:
-    """Normalize any supported input to a 3-channel RGB array."""
-
-    if image_np.ndim == 2:
-        return cv2.cvtColor(image_np, cv2.COLOR_GRAY2RGB)
-
-    return image_np[:, :, :3]
+# Kept as a module-level name because the surrounding code (and its
+# tests) refer to it; the implementation moved to modules/image_utils.py
+# once the comparison and pipeline views needed the same conversion.
+_as_rgb = to_rgb
 
 
 def apply_yolo_detection(

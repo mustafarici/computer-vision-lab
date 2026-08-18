@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import streamlit as st
 
-
 # These depend only on the uploaded image (no slider parameters), so
 # a couple of entries covers switching between a few images. Each
 # composite is 3x the input width (~19 MB), so the bound matters.

@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import streamlit as st
 
-
 # Harris/ORB are the most expensive non-cascade operations here
 # (~28-53 ms), so caching clearly pays off — but it's bounded so
 # dragging a slider doesn't accumulate one full-size result per stop.

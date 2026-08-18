@@ -13,8 +13,12 @@ env/
 # VS Code
 .vscode/
 
-# Streamlit cache
-.streamlit/
+# Streamlit
+#
+# .streamlit/config.toml is committed deliberately — it's what makes
+# the deployed app look like the local one. Only the secrets file is
+# private.
+.streamlit/secrets.toml
 
 # Locally saved processing results (see results/README.md)
 results/*.png

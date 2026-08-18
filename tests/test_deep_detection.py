@@ -21,6 +21,7 @@ from modules.deep_detection import (
     apply_mediapipe_landmarks,
     apply_yolo_detection,
     download_model,
+    is_mediapipe_available,
     is_yolo_available,
 )
 
@@ -202,3 +203,45 @@ def test_yolo_handles_a_grayscale_image(grayscale_only_image):
 
     assert canvas.shape == (*grayscale_only_image.shape, 3)
     assert count >= 0
+
+
+@pytest.mark.skipif(
+    not is_mediapipe_available(), reason="mediapipe not installed"
+)
+@pytest.mark.skipif(not SAMPLE_IMAGE.exists(), reason="sample image missing")
+@pytest.mark.parametrize("task_name", list(MEDIAPIPE_TASKS))
+def test_mediapipe_runs_every_task_end_to_end(task_name):
+    """
+    Load the real model, run it on a real photo, draw the result.
+
+    The assertions are deliberately about structure rather than about
+    how many faces MediaPipe ought to find in this particular
+    photograph — the failure this guards against is the whole Tasks API
+    path breaking (MediaPipe removed the old `mp.solutions` API in
+    0.10.30, which is exactly the kind of change that silently invalidates
+    this module), not a drop in detection quality.
+    """
+
+    from PIL import Image
+
+    image = np.array(Image.open(SAMPLE_IMAGE).convert("RGB"))
+
+    try:
+        canvas, count, summary = apply_mediapipe_landmarks(image, task_name)
+
+    except RuntimeError as error:
+        # The .task bundles are downloaded on first use. No network,
+        # no test — but say so rather than reporting a pass.
+        pytest.skip(f"MediaPipe model unavailable: {error}")
+
+    assert canvas.shape == image.shape
+    assert canvas.dtype == np.uint8
+    assert count >= 0
+    assert summary
+
+    if count > 0:
+        # Landmarks were drawn onto a copy, never the caller's array.
+        assert not np.array_equal(canvas, image)
+        assert np.array_equal(
+            image, np.array(Image.open(SAMPLE_IMAGE).convert("RGB"))
+        )

@@ -24,7 +24,8 @@ Handlers all share the same signature:
   by the names used below (see app.py's `params = {...}` block).
 """
 
-from typing import Callable, NamedTuple, Optional
+from collections.abc import Callable
+from typing import NamedTuple
 
 from modules.basic_ops import apply_gaussian_blur, apply_threshold
 from modules.color_analysis import (
@@ -63,6 +64,7 @@ from modules.morphology import (
     apply_opening,
 )
 from modules.object_detection import apply_object_detection
+from modules.pipeline import run_pipeline
 from modules.thresholding import apply_adaptive_threshold, apply_otsu_threshold
 
 
@@ -71,7 +73,7 @@ class StageResult(NamedTuple):
     an optional one-line caption shown underneath it."""
 
     image: object
-    extra_info: Optional[str] = None
+    extra_info: str | None = None
 
 
 class Stage(NamedTuple):
@@ -479,6 +481,22 @@ def _mediapipe_landmarks(image_np, grayscale, params):
     return StageResult(result, f"**{task_name}.** {detail}")
 
 
+def _custom_pipeline(image_np, grayscale, params):
+    steps = list(params.get("pipeline_steps") or ())
+
+    if not steps:
+        return StageResult(
+            image_np,
+            "No steps chosen yet — pick some in the **🧬 Custom "
+            "Pipeline** section of the sidebar and they'll run in the "
+            "order you select them.",
+        )
+
+    result, trace = run_pipeline(image_np, steps, params)
+
+    return StageResult(result, "**Chain:** " + " → ".join(trace))
+
+
 # ==================================================
 # STAGE REGISTRY
 # ==================================================
@@ -840,6 +858,20 @@ STAGES: dict[str, Stage] = {
         requires_color=True,
         handler=_color_histogram,
         is_figure=True,
+        needs_grayscale=False,
+    ),
+    "Custom Pipeline": Stage(
+        category="Pipeline",
+        description=(
+            "Chain operations together in whatever order you choose, "
+            "instead of every stage starting again from the original "
+            "image. Each step feeds the next, and any grayscale "
+            "conversion or threshold a step needs is inserted for you "
+            "and shown in the chain underneath the result."
+        ),
+        pipeline="Original → (your steps, in the order you pick them)",
+        requires_color=False,
+        handler=_custom_pipeline,
         needs_grayscale=False,
     ),
 }

@@ -6,7 +6,11 @@ on:
   pull_request:
 
 jobs:
+  # ==================================================
+  # BASE: the app as most people install it
+  # ==================================================
   test:
+    name: tests (core deps, py${{ matrix.python-version }})
     runs-on: ubuntu-latest
 
     strategy:
@@ -42,5 +46,96 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
 
+      # -rs lists what was skipped, so "the ML tests were skipped
+      # because the packages aren't here" is visible in the log rather
+      # than looking like they passed.
       - name: Run tests
-        run: pytest -q
+        run: pytest -q -rs
+
+  # ==================================================
+  # OPTIONAL ML: the deep-learning stages, for real
+  # ==================================================
+  #
+  # Without this job the YOLO and MediaPipe code paths are never
+  # executed with the actual packages installed — the base job only
+  # ever covers the "not installed, show an install hint" branch, and
+  # a broken model call would ship green.
+  #
+  # One Python version rather than the full matrix: this installs
+  # PyTorch, so it is by far the most expensive job here, and the point
+  # is to cover the code path at all, not to cover it twice.
+  test-ml:
+    name: tests (optional ML deps)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install OpenCV system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1
+          sudo apt-get install -y libglib2.0-0t64 \
+            || sudo apt-get install -y libglib2.0-0
+
+      # The default PyTorch wheels bundle CUDA and are several GB. The
+      # runners have no GPU, so the CPU-only index gives the same test
+      # coverage in a fraction of the download.
+      - name: Install PyTorch (CPU-only build)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision \
+            --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt \
+                      -r requirements-dev.txt \
+                      -r requirements-ml.txt
+
+      # Fetching the weights as an explicit step means a model-hosting
+      # outage shows up here, as an obviously infrastructural failure,
+      # instead of as a confusing assertion error inside a test.
+      - name: Fetch model weights
+        env:
+          # ultralytics writes its settings file to $HOME by default,
+          # which it warns about on read-only runners.
+          YOLO_CONFIG_DIR: ${{ runner.temp }}/ultralytics
+        run: python scripts/fetch_models.py
+
+      - name: Run tests
+        env:
+          YOLO_CONFIG_DIR: ${{ runner.temp }}/ultralytics
+        run: pytest -q -rs
+
+  # ==================================================
+  # LINT
+  # ==================================================
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      # Lint only, not `ruff format --check`. The formatter has its own
+      # opinion about blank lines that would reflow most of this
+      # codebase in a single commit and flatten the spacing the modules
+      # use to separate one step of an operation from the next.
+      - name: Lint
+        run: ruff check .

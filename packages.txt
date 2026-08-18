@@ -1,0 +1,11 @@
+# apt packages installed by Streamlit Community Cloud before pip runs.
+#
+# opencv-python links against libGL and glib, neither of which is on
+# the base image — without these the app dies on `import cv2` with an
+# ImportError that says nothing about the real cause.
+libgl1
+libglib2.0-0
+# OpenCV's wheels can write MPEG-4 but not H.264, and browsers only
+# play the latter. ffmpeg is what lets the processed video show up in
+# the page instead of only as a download.
+ffmpeg

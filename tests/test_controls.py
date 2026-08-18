@@ -45,7 +45,7 @@ def test_default_params_covers_every_control():
 
 def test_every_control_has_a_known_kind():
     for control in ALL_CONTROLS:
-        assert control.kind in {"slider", "range", "select"}
+        assert control.kind in {"slider", "range", "select", "multiselect"}
 
 
 def test_slider_defaults_are_within_bounds():
@@ -79,6 +79,17 @@ def test_select_defaults_are_valid_options():
 
         assert control.options, control.key
         assert control.default in control.options, control.key
+
+
+def test_multiselect_defaults_are_valid_options():
+    for control in ALL_CONTROLS:
+        if control.kind != "multiselect":
+            continue
+
+        assert control.options, control.key
+
+        for choice in control.default:
+            assert choice in control.options, (control.key, choice)
 
 
 def test_every_control_has_help_text():

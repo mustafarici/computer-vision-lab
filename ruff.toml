@@ -1,0 +1,44 @@
+# Ruff configuration.
+#
+# Linting only — `ruff format` is deliberately not part of the workflow
+# here. The formatter collapses the blank lines this codebase uses to
+# separate the steps inside a function, and reflowing every file at
+# once to gain that would cost more in readability than it returns.
+
+line-length = 79
+
+exclude = [
+    ".git",
+    "__pycache__",
+    "models",
+    "results",
+]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes: undefined names, unused imports
+    "I",    # isort: import ordering
+    "UP",   # pyupgrade: outdated syntax
+    "B",    # flake8-bugbear: likely bugs
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+]
+
+ignore = [
+    # Long lines are reported by E501, but the rule can't tell a
+    # sprawling expression from a URL in a comment that has nowhere to
+    # break. The line-length above still guides the formatter and
+    # reviewers.
+    "E501",
+]
+
+[lint.per-file-ignores]
+# Tests reach into module internals on purpose (verifying a private
+# helper's behaviour is the point), and pytest fixtures shadow their
+# own names by design.
+"tests/*" = ["B011"]
+
+[lint.isort]
+known-first-party = ["modules"]

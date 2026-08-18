@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import streamlit as st
 
-
 # The H/S/V range sliders have an enormous combined parameter space
 # and this function returns two full-size images (~12 MB per entry),
 # so the cache is kept deliberately small.
