@@ -2,7 +2,8 @@
 
 import cv2
 import numpy as np
-import streamlit as st
+
+from modules.caching import cache_data
 
 # Harris/ORB are the most expensive non-cascade operations here
 # (~28-53 ms), so caching clearly pays off — but it's bounded so
@@ -10,7 +11,7 @@ import streamlit as st
 MAX_CACHE_ENTRIES = 8
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def compute_harris_response(
     grayscale: np.ndarray,
     block_size: int,
@@ -29,7 +30,7 @@ def compute_harris_response(
     return cv2.cornerHarris(gray_float, block_size, ksize, k)
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_harris_corners(
     grayscale: np.ndarray,
     harris_response: np.ndarray,
@@ -56,7 +57,7 @@ def apply_harris_corners(
     return canvas
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_orb_keypoints(grayscale: np.ndarray, n_features: int) -> tuple[np.ndarray, int]:
     """
     Detect ORB keypoints and draw them on a color version of the grayscale

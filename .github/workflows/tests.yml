@@ -49,8 +49,13 @@ jobs:
       # -rs lists what was skipped, so "the ML tests were skipped
       # because the packages aren't here" is visible in the log rather
       # than looking like they passed.
+      #
+      # Coverage is reported, not enforced. A threshold here would
+      # mostly measure how much of the Streamlit view layer a headless
+      # runner happens to execute; the number is useful to look at and
+      # a poor thing to fail a build on.
       - name: Run tests
-        run: pytest -q -rs
+        run: pytest -q -rs --cov=modules --cov=views --cov-report=term-missing
 
   # ==================================================
   # OPTIONAL ML: the deep-learning stages, for real
@@ -123,6 +128,59 @@ jobs:
         env:
           YOLO_CONFIG_DIR: ${{ runner.temp }}/ultralytics
         run: pytest -q -rs
+
+  # ==================================================
+  # A DELIBERATELY BROKEN ENVIRONMENT
+  # ==================================================
+  #
+  # Both of this project's production breakages were environmental —
+  # a package resolving to OpenCV 5, and MediaPipe installed on a
+  # machine with no OpenGL ES runtime — and both shipped green,
+  # because in a *working* environment there is nothing to detect.
+  #
+  # So this job builds the broken environment on purpose: the ML
+  # packages installed, the OpenGL libraries left out. It doesn't
+  # assert that everything works. It asserts that the app says what is
+  # missing and keeps its other 32 stages running, which is the actual
+  # requirement.
+  test-degraded:
+    name: tests (ML deps, no system libraries)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # libgl1 and glib only — cv2 has to import for anything at all to
+      # run. libegl1 and libgles2 are pointedly absent.
+      - name: Install the bare minimum
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1
+          sudo apt-get install -y libglib2.0-0t64 \
+            || sudo apt-get install -y libglib2.0-0
+
+      - name: Install PyTorch (CPU-only build)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision \
+            --index-url https://download.pytorch.org/whl/cpu \
+            || pip install torch torchvision
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt \
+                      -r requirements-dev.txt \
+                      -r requirements-ml.txt
+
+      - name: The app must degrade, not fall over
+        env:
+          YOLO_CONFIG_DIR: ${{ runner.temp }}/ultralytics
+        run: pytest -q -rs tests/test_graceful_degradation.py
 
   # ==================================================
   # LINT

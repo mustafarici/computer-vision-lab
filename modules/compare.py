@@ -18,8 +18,8 @@ histogram stages return a matplotlib figure rather than an array —
 
 import cv2
 import numpy as np
-import streamlit as st
 
+from modules.caching import cache_data
 from modules.image_utils import same_frame_size, to_rgb
 
 # Difference images are cheap to compute (~1 ms) but this is called on
@@ -38,7 +38,7 @@ def is_comparable(original, result) -> bool:
     return same_frame_size(original, result)
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def compute_difference(original: np.ndarray, result: np.ndarray) -> np.ndarray:
     """
     Absolute per-pixel difference between the original and the result.

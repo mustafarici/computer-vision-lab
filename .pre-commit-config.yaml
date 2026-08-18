@@ -30,3 +30,4 @@ repos:
     hooks:
       - id: ruff
         args: ["--fix"]
+        # No ruff-format hook on purpose; see ruff.toml.

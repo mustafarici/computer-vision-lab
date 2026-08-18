@@ -27,7 +27,11 @@ Handlers all share the same signature:
 from collections.abc import Callable
 from typing import NamedTuple
 
-from modules.basic_ops import apply_gaussian_blur, apply_threshold
+from modules.basic_ops import (
+    apply_gaussian_blur,
+    apply_threshold,
+    convert_to_grayscale,
+)
 from modules.color_analysis import (
     build_hsv_channel_composite,
     build_rgb_channel_composite,
@@ -495,6 +499,28 @@ def _custom_pipeline(image_np, grayscale, params):
     result, trace = run_pipeline(image_np, steps, params)
 
     return StageResult(result, "**Chain:** " + " → ".join(trace))
+
+
+def run_stage(stage_info: Stage, image_np, params: dict):
+    """
+    Run one stage over one image.
+
+    Returns (grayscale, result). The grayscale conversion is handed
+    back because the histogram stage reports statistics over it and
+    would otherwise compute it twice; stages that declared
+    needs_grayscale=False get None, and must not touch it.
+
+    This lives here rather than in the UI because both the single-image
+    view and the video view call it — a frame of video goes through
+    exactly the same code as a still, so the two can't drift apart, and
+    the dispatch itself is testable without rendering anything.
+    """
+
+    grayscale = (
+        convert_to_grayscale(image_np) if stage_info.needs_grayscale else None
+    )
+
+    return grayscale, stage_info.handler(image_np, grayscale, params)
 
 
 # ==================================================

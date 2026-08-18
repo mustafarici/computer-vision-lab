@@ -17,7 +17,8 @@ that's where their difference is easiest to see.
 
 import cv2
 import numpy as np
-import streamlit as st
+
+from modules.caching import cache_data
 
 MAX_CACHE_ENTRIES = 6
 
@@ -31,7 +32,7 @@ def _as_processable(image_np: np.ndarray) -> np.ndarray:
     return image_np
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_median_filter(image_np: np.ndarray, kernel_size: int) -> np.ndarray:
     """
     Median blur. kernel_size must be odd; OpenCV also requires it to be
@@ -46,7 +47,7 @@ def apply_median_filter(image_np: np.ndarray, kernel_size: int) -> np.ndarray:
     return cv2.medianBlur(_as_processable(image_np), kernel_size)
 
 
-@st.cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
+@cache_data(show_spinner=False, max_entries=MAX_CACHE_ENTRIES)
 def apply_bilateral_filter(
     image_np: np.ndarray,
     diameter: int,

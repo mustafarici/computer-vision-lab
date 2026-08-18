@@ -10,7 +10,11 @@ sections point at stage categories that exist.
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from modules.controls import SECTIONS, default_params
+from modules.controls import (
+    SECTIONS,
+    active_categories_for,
+    default_params,
+)
 from modules.stages import STAGES
 
 ALL_CONTROLS = [control for section in SECTIONS for control in section.controls]
@@ -25,7 +29,7 @@ import streamlit as st
 from modules.controls import render_sidebar
 
 with st.sidebar:
-    params = render_sidebar(active_category=st.session_state.get("category", ""))
+    params = render_sidebar(st.session_state.get("category", ""))
 
 st.session_state["rendered_params"] = params
 """
@@ -172,3 +176,65 @@ def test_canny_warning_fires_only_when_thresholds_are_inverted():
     params["upper_threshold"] = 100
 
     assert section.warning(params)
+
+
+# ==================================================
+# WHICH SECTIONS OPEN
+# ==================================================
+
+
+def test_a_normal_stage_only_opens_its_own_section():
+    assert active_categories_for("Morphology", default_params()) == frozenset(
+        {"Morphology"}
+    )
+
+
+def test_a_pipeline_opens_the_sections_its_steps_are_tuned_from():
+    """
+    A chain has one control of its own and borrows the rest. Being told
+    "the blur lives somewhere else" and having to go find it is the
+    failure this prevents.
+    """
+
+    params = default_params()
+    params["pipeline_steps"] = ["Gaussian Blur", "CLAHE", "Erosion"]
+
+    categories = active_categories_for("Pipeline", params)
+
+    assert "Pipeline" in categories
+    assert "Basic Processing" in categories   # Gaussian Blur
+    assert "Enhancement" in categories        # CLAHE
+    assert "Morphology" in categories         # Erosion
+    # Nothing it doesn't use.
+    assert "Hough Transform" not in categories
+
+
+def test_a_pipeline_of_parameterless_steps_opens_nothing_extra():
+    params = default_params()
+    params["pipeline_steps"] = ["Grayscale", "Otsu Threshold", "Invert"]
+
+    assert active_categories_for("Pipeline", params) == frozenset({"Pipeline"})
+
+
+def test_an_unrendered_pipeline_falls_back_to_the_declared_default():
+    """
+    This is called before the sidebar renders, so on first load session
+    state has no value for the multiselect yet — the sections that open
+    still have to match the chain the user is about to be shown.
+    """
+
+    from_empty = active_categories_for("Pipeline", {})
+    from_default = active_categories_for("Pipeline", default_params())
+
+    assert from_empty == from_default
+    assert len(from_empty) > 1
+
+
+def test_every_pipeline_step_points_at_a_real_section():
+    from modules.pipeline import OPERATIONS
+
+    known = set().union(*(section.categories for section in SECTIONS))
+
+    for name, operation in OPERATIONS.items():
+        if operation.settings_category:
+            assert operation.settings_category in known, name

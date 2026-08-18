@@ -1,6 +1,7 @@
 # 🧪 Computer Vision Lab
 
 [![tests](https://github.com/mustafarici/computer-vision-lab/actions/workflows/tests.yml/badge.svg)](https://github.com/mustafarici/computer-vision-lab/actions/workflows/tests.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An interactive computer vision and image processing laboratory built with **Python**, **OpenCV**, **NumPy**, **Pillow**, **Matplotlib** and **Streamlit** — with optional deep-learning stages powered by **YOLOv8** and **MediaPipe**.
 
@@ -61,6 +62,8 @@ The difference view also quantifies what changed — the share of pixels the sta
 Every other stage starts from the original image, which is the right shape for learning one operation at a time and the wrong shape for the moment you want to ask "what if I equalize the contrast *first*, then threshold, then close the gaps?"
 
 The Custom Pipeline stage lets you chain operations in whatever order you click them. Any grayscale conversion or threshold a step needs is inserted automatically, and the chain that actually ran is printed underneath the result — so there are no invalid combinations to discover, and no guessing about what the app silently did on your behalf.
+
+A chain borrows its settings from the sections its steps came from rather than duplicating every slider, so the sidebar opens exactly those sections: pick CLAHE and Opening and you get the CLAHE and morphology controls, without being told to go and find them.
 
 ![A custom chain: CLAHE, Otsu threshold, opening, contour detection](assets/screenshot-pipeline.jpg)
 
@@ -128,7 +131,16 @@ Every parameter updates the result immediately. Stages that need a color image s
 
 - **Bounded caches**: every cache sets `max_entries`, so dragging a slider can't accumulate one full-size image per position. (Previously, sweeping the 0–255 threshold slider alone could cache ~500 MB of images.)
 
-- **Bounded video work**: frame size, frame count and stride are capped before processing rather than after, so a long clip degrades into a shorter preview instead of an unresponsive page.
+- **Caching is a property of the call site, not the function.** The same measurement that justifies caching Canny from a slider condemns it inside a video loop: every frame is a different array, so every lookup misses while still paying to hash a 1.5 MB frame and copy the result back. Measured over 60 frames of 720p:
+
+  | | Total | Per frame |
+  |---|---|---|
+  | With `@st.cache_data` | 792 ms | 13.2 ms |
+  | With caching bypassed | 606 ms | 10.1 ms |
+
+  So `modules/caching.py` makes the decision per call, and the video path runs inside `caching_disabled()` — **31% faster**, identical output.
+
+- **Bounded video work**: frame size, frame count and stride are capped before processing rather than after, so a long clip degrades into a shorter preview instead of an unresponsive page. Each session gets one scratch directory that is cleared between runs, and directories left by sessions that ended are swept — otherwise a 200 MB upload cap and a long-running server are a disk-exhaustion bug waiting to happen.
 
 - **No figure leak**: histograms are built with matplotlib's object-oriented `Figure` rather than `plt.subplots()`, which would keep every figure ever rendered alive in pyplot's global registry — one per rerun.
 
@@ -143,19 +155,24 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-564 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, video framing and encoding, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
+664 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, video framing and encoding, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
 
 The pipeline builder is tested over **every ordered pair of operations**, because "does this chain work" is a question about combinations, not about individual functions — an operation that quietly rejects a 3-channel array is only wrong in the orderings that hand it one.
 
 A few tests assert about the *installed environment* rather than about this code, because the two most expensive bugs in this project's history were both of that shape: a dependency quietly resolving to OpenCV 5 (which removed `cv2.CascadeClassifier`), and MediaPipe installing cleanly on a machine with no OpenGL ES runtime, then failing hundreds of lines deep with `libGLESv2.so.2: cannot open shared object file`. Neither is visible to an import check, and the second one used to take the whole page down rather than one stage — now it reports which system package is missing.
 
-CI runs three jobs on every push:
+The UI is tested too, through Streamlit's `AppTest`: every stage is rendered, the comparison modes are switched, the navigation buttons are clicked. Line coverage is **91%**.
+
+CI runs four jobs on every push:
 
 | Job | What it covers |
 |---|---|
-| `tests (core deps)` | Python 3.11 and 3.13, base requirements only |
+| `tests (core deps)` | Python 3.11 and 3.13, base requirements only, with a coverage report |
 | `tests (optional ML deps)` | The same suite with `ultralytics` and `mediapipe` really installed, so the YOLO and MediaPipe code paths run for real rather than only their "not installed" branch |
+| `tests (ML deps, no system libraries)` | The ML packages installed and the OpenGL libraries deliberately left out. It doesn't check that everything works — it checks that the app names what's missing and keeps its other 32 stages running |
 | `ruff` | Lint |
+
+That third job exists because both of this project's production breakages were environmental and both shipped green: OpenCV 5 removing `cv2.CascadeClassifier`, and MediaPipe needing an OpenGL ES runtime that `pip install` doesn't provide. In a working environment there is nothing to detect, so CI builds a broken one on purpose. Dependabot opens the dependency bumps that caused them, weekly, as pull requests with those checks attached.
 
 Locally, the same lint runs before each commit:
 
@@ -208,6 +225,18 @@ you build, in whatever order you build it.)
 
 ---
 
+## 🔒 Notes on running this in public
+
+The app is designed to be safe to deploy, which is a different bar from being safe to run on your own laptop:
+
+- **Uploaded filenames are treated as hostile.** A filename is not a name, it's whatever the client sent — `../../app.py` included. Uploads are written under a sanitized single path segment inside a per-session directory, and the write is refused outright if the resolved path would land anywhere else. On a hosted deployment the application directory is writable and Streamlit reloads on file change, so an arbitrary write is a short walk from arbitrary code execution.
+- **Temporary files are cleaned up.** One scratch directory per session, cleared between runs, and directories left behind by sessions that ended are swept on the way in.
+- **"Save a copy to `results/`" is hidden when the app isn't running locally**, where it would write into the server's ephemeral filesystem for a file the user can't reach. Set `CVLAB_HOSTED=1` to force that behaviour anywhere.
+- **The camera widget doesn't overclaim.** The snapshot goes to whatever machine is running the app — this laptop locally, someone else's server when deployed — and the help text says so.
+- **Model weights are loaded from a fixed table only.** YOLO `.pt` files are pickles, so `torch.load` on an arbitrary one is remote code execution. If you ever add "upload your own model", that's the line you'd be crossing.
+
+---
+
 ## ☁️ Deploying
 
 The repository is ready for [Streamlit Community Cloud](https://share.streamlit.io) as-is:
@@ -244,6 +273,8 @@ Point Streamlit Cloud at this repository with `app.py` as the entry point. The o
 - [x] Chained custom pipelines
 - [x] Video and webcam input
 - [x] Linting, pre-commit hooks, and CI coverage for the optional ML stages
+- [x] Security review: upload path sanitizing, temp cleanup, honest privacy wording
+- [x] UI layer split out of app.py, tested through `AppTest`
 
 ### 🔭 Possible next steps
 
@@ -272,7 +303,8 @@ Point Streamlit Cloud at this repository with `app.py` as the entry point. The o
 ```text
 computer-vision-lab/
 │
-├── app.py                    # Streamlit entry point / UI shell
+├── app.py                    # Streamlit entry point: config, input source, dispatch
+├── LICENSE
 ├── requirements.txt          # Core dependencies
 ├── requirements-ml.txt       # Optional: YOLO + MediaPipe
 ├── requirements-dev.txt      # Optional: pytest, ruff, pre-commit
@@ -283,7 +315,9 @@ computer-vision-lab/
 ├── README.md
 ├── .gitignore
 │
-├── .github/workflows/        # CI: tests, optional-ML tests, lint
+├── .github/
+│   ├── workflows/            # CI: tests, optional-ML, degraded-environment, lint
+│   └── dependabot.yml
 ├── .streamlit/               # Theme and server config
 ├── assets/                   # Screenshots used by this README
 ├── images/                   # Sample images used for local testing
@@ -296,6 +330,8 @@ computer-vision-lab/
 │   ├── pipeline.py           # Chainable operations + the chain runner
 │   ├── compare.py            # Before/after and difference views
 │   ├── video.py              # Frame-by-frame video processing
+│   ├── workspace.py          # Per-session scratch space, upload sanitizing
+│   ├── caching.py            # Cache decorator that a caller can switch off
 │   ├── image_utils.py        # Shared shape/representation helpers
 │   ├── io_utils.py
 │   ├── basic_ops.py
@@ -313,6 +349,10 @@ computer-vision-lab/
 │   ├── object_detection.py
 │   ├── deep_detection.py     # YOLO + MediaPipe (optional dependencies)
 │   └── histogram.py
+├── views/                    # The UI layer; no image processing lives here
+│   ├── image_view.py
+│   ├── video_view.py
+│   └── navigation.py
 ├── tests/                    # pytest suite
 ├── models/                   # Downloaded model weights (git-ignored)
 └── results/                  # Locally saved processing results
@@ -323,7 +363,7 @@ computer-vision-lab/
 1. Write the operation in a module under `modules/` (or add it to a fitting one).
 2. Add a handler and a `Stage(...)` entry in `modules/stages.py`.
 3. If it needs parameters, add `Control(...)` entries to `modules/controls.py`.
-4. If it makes sense as a chain step, add an `Operation(...)` entry to `modules/pipeline.py`.
+4. If it makes sense as a chain step, add an `Operation(...)` entry to `modules/pipeline.py`, naming the sidebar section its settings come from.
 
 The sidebar, the params dict, navigation, the comparison views, the video mode, the download button and the tests that run every handler all pick it up automatically.
 
@@ -334,5 +374,7 @@ The sidebar, the params dict, navigation, the comparison views, the video mode, 
 **Mustafa Arıcı**
 M.Sc. Student in Computational Science and Engineering
 Izmir Institute of Technology
+
+Licensed under the [MIT License](LICENSE).
 
 > This project is actively under development.

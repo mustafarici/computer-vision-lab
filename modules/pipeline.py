@@ -62,6 +62,14 @@ class Operation(NamedTuple):
     # The operation is defined on a binary mask, so the runner
     # thresholds first when what arrived isn't already one.
     binary_input: bool = False
+    # Which sidebar section (by stage category, as used in
+    # modules/controls.py) holds this step's knobs. A chain reuses the
+    # existing parameter sections rather than duplicating every slider,
+    # which is cheap to build and confusing to use — so the sidebar
+    # opens the sections a chain actually reads instead of leaving the
+    # user to find out that "Gaussian Blur" is tuned under Basic
+    # Processing. Empty for steps that take no parameters.
+    settings_category: str = ""
 
 
 def _is_binary(image_np: np.ndarray) -> bool:
@@ -109,12 +117,14 @@ OPERATIONS: dict[str, Operation] = {
             image, params["kernel_size"]
         ),
         summary="smooth with a Gaussian kernel",
+        settings_category="Basic Processing",
     ),
     "Median Filter": Operation(
         apply=lambda image, params: apply_median_filter(
             image, params["median_kernel_size"]
         ),
         summary="remove speckle noise",
+        settings_category="Noise Filtering",
     ),
     "Bilateral Filter": Operation(
         apply=lambda image, params: apply_bilateral_filter(
@@ -124,6 +134,7 @@ OPERATIONS: dict[str, Operation] = {
             params["bilateral_sigma_space"],
         ),
         summary="smooth without softening edges",
+        settings_category="Noise Filtering",
     ),
     "Histogram Equalization": Operation(
         apply=lambda image, params: apply_histogram_equalization(image),
@@ -135,6 +146,7 @@ OPERATIONS: dict[str, Operation] = {
             image, params["clahe_clip_limit"], params["clahe_tile_size"]
         ),
         summary="raise local contrast, tile by tile",
+        settings_category="Enhancement",
         single_channel=True,
     ),
     "Invert": Operation(
@@ -146,6 +158,7 @@ OPERATIONS: dict[str, Operation] = {
             image, params["threshold_value"]
         ),
         summary="binarize at the chosen intensity",
+        settings_category="Basic Processing",
         single_channel=True,
     ),
     "Otsu Threshold": Operation(
@@ -161,6 +174,7 @@ OPERATIONS: dict[str, Operation] = {
             params["adaptive_constant"],
         ),
         summary="binarize against each pixel's own neighbourhood",
+        settings_category="Thresholding",
         single_channel=True,
     ),
     "Canny Edges": Operation(
@@ -170,6 +184,7 @@ OPERATIONS: dict[str, Operation] = {
             max(params["lower_threshold"], params["upper_threshold"]),
         ),
         summary="trace edges with hysteresis thresholding",
+        settings_category="Edge Detection",
         single_channel=True,
     ),
     "Sobel Edges": Operation(
@@ -177,6 +192,7 @@ OPERATIONS: dict[str, Operation] = {
             image, params["sobel_kernel_size"]
         ),
         summary="measure the intensity gradient",
+        settings_category="Edge Detection",
         single_channel=True,
     ),
     "Laplacian Edges": Operation(
@@ -184,35 +200,41 @@ OPERATIONS: dict[str, Operation] = {
             image, params["laplacian_kernel_size"]
         ),
         summary="find rapid intensity change in every direction",
+        settings_category="Edge Detection",
         single_channel=True,
     ),
     "Erosion": Operation(
         apply=_make_morphology_step(apply_erosion),
         summary="shrink the white regions",
+        settings_category="Morphology",
         single_channel=True,
         binary_input=True,
     ),
     "Dilation": Operation(
         apply=_make_morphology_step(apply_dilation),
         summary="grow the white regions",
+        settings_category="Morphology",
         single_channel=True,
         binary_input=True,
     ),
     "Opening": Operation(
         apply=_make_morphology_step(apply_opening),
         summary="erode then dilate, clearing small specks",
+        settings_category="Morphology",
         single_channel=True,
         binary_input=True,
     ),
     "Closing": Operation(
         apply=_make_morphology_step(apply_closing),
         summary="dilate then erode, filling small holes",
+        settings_category="Morphology",
         single_channel=True,
         binary_input=True,
     ),
     "Contour Detection": Operation(
         apply=_contours_step,
         summary="outline the connected white regions",
+        settings_category="Contours",
         single_channel=True,
         binary_input=True,
     ),

@@ -854,20 +854,60 @@ def _render_control(control: Control):
     return st.slider(**slider_kwargs)
 
 
-def render_sidebar(active_category: str = "") -> dict:
+def active_categories_for(stage_category: str, params: dict) -> frozenset:
+    """
+    Which sidebar sections are worth having open right now.
+
+    Normally that's just the section belonging to the stage on screen.
+    The Custom Pipeline stage is the exception: it has one control of
+    its own and borrows every other setting from the sections the
+    chosen steps came from, so "the relevant controls" depends on what
+    the user has put in the chain. Without this, building a chain means
+    being told that the blur is configured somewhere else and going to
+    look for it.
+    """
+
+    if stage_category != "Pipeline":
+        return frozenset({stage_category})
+
+    categories = {stage_category}
+
+    # Called before the sidebar renders, so on the very first load the
+    # widget has no value in session state yet — fall back to the
+    # declared default, which is what it is about to show.
+    steps = params.get("pipeline_steps")
+
+    if not steps:
+        steps = default_params()["pipeline_steps"]
+
+    for step in steps:
+        operation = OPERATIONS.get(step)
+
+        if operation is not None and operation.settings_category:
+            categories.add(operation.settings_category)
+
+    return frozenset(categories)
+
+
+def render_sidebar(active_categories: object = "") -> dict:
     """
     Render every control section into the sidebar and return the
     collected values as the params dict that stage handlers read.
 
-    The section(s) relevant to `active_category` are expanded and the
-    rest are collapsed, so the controls that affect what's currently on
-    screen are the ones in view.
+    Sections matching `active_categories` (one category or several) are
+    expanded and the rest are collapsed, so the controls that affect
+    what's currently on screen are the ones in view.
     """
+
+    if isinstance(active_categories, str):
+        active_categories = frozenset({active_categories})
+    else:
+        active_categories = frozenset(active_categories)
 
     params: dict = {}
 
     for section in SECTIONS:
-        is_relevant = active_category in section.categories
+        is_relevant = bool(active_categories & section.categories)
 
         with st.expander(section.title, expanded=is_relevant):
 

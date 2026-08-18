@@ -1,0 +1,27 @@
+# Dependency updates, opened as pull requests so CI judges them.
+#
+# This repository has now been broken twice by dependency drift that
+# nobody chose: opencv-python resolving to 5.0 (which removed
+# cv2.CascadeClassifier), and opencv-contrib-python arriving through
+# mediapipe and doing the same thing again. Both were found in CI,
+# after the fact. A weekly PR turns that into something that gets
+# reviewed with a green or red check next to it, before it matters.
+version: 2
+
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for routine bumps; anything that breaks shows up as one
+      # failing check rather than five.
+      python-dependencies:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
