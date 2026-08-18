@@ -1,5 +1,5 @@
 # Development / CI only — not needed to run the app.
-pytest>=8.0,<10
+pytest>=9.1.1,<10
 pytest-cov>=6.0,<8
 ruff>=0.9,<1
 pre-commit>=4.0,<5
