@@ -39,7 +39,7 @@ Without them the app runs exactly as before — those two stages just show an in
 
 **Image** — upload a JPG or PNG. Large images are downscaled (long side capped at 1920px, aspect preserved) so nothing chokes on a 20MP photo, and both resolutions are reported when that happens.
 
-**Camera** — take a snapshot from the webcam and process it in place. Nothing is uploaded anywhere; the frame is handled in memory.
+**Camera** — take a snapshot from the webcam and process it in place. The frame goes to whatever machine is running the app — your own when running locally, the host's when deployed — and is held in memory rather than written anywhere.
 
 **Video** — run any stage over every frame of a clip. A still image tells you what an operation does; a video tells you whether it holds up — detection that flickers between frames, or a threshold tuned for exactly one lighting condition, is invisible in a single frame and obvious in a few seconds of footage.
 
@@ -167,7 +167,7 @@ CI runs four jobs on every push:
 
 | Job | What it covers |
 |---|---|
-| `tests (core deps)` | Python 3.11 and 3.13, base requirements only, with a coverage report |
+| `tests (core deps)` | Python 3.11 and 3.13, base requirements only, with a coverage report. Needs no system packages at all, so it can't be held up by an Ubuntu mirror |
 | `tests (optional ML deps)` | The same suite with `ultralytics` and `mediapipe` really installed, so the YOLO and MediaPipe code paths run for real rather than only their "not installed" branch |
 | `tests (ML deps, no system libraries)` | The ML packages installed and the OpenGL libraries deliberately left out. It doesn't check that everything works — it checks that the app names what's missing and keeps its other 32 stages running |
 | `ruff` | Lint |
@@ -242,7 +242,7 @@ The app is designed to be safe to deploy, which is a different bar from being sa
 The repository is ready for [Streamlit Community Cloud](https://share.streamlit.io) as-is:
 
 - `requirements.txt` pins every dependency below its next major release
-- `packages.txt` installs the apt packages OpenCV, MediaPipe and the video encoder need (`libgl1`, `libglib2.0-0`, `libegl1`, `libgles2`, `ffmpeg`)
+- `packages.txt` needs only `ffmpeg`, for the video stage. The app asks for `opencv-python-headless`, which links against no GUI libraries — a Streamlit app never opens a window, so the GUI half of OpenCV is dead weight that drags in libGL, glib and GTK. (The packages MediaPipe would need are listed there, commented out, for if you add the ML dependencies.)
 - `.streamlit/config.toml` gives the deployed app the same theme as the local one
 
 Point Streamlit Cloud at this repository with `app.py` as the entry point. The optional ML dependencies are deliberately left out of `requirements.txt`, so the deployed app starts fast and the two deep-learning stages show their install hint; move them across if you want YOLO in the hosted version too.

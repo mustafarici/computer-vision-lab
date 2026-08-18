@@ -1,17 +1,19 @@
 # apt packages installed by Streamlit Community Cloud before pip runs.
 #
-# opencv-python links against libGL and glib, neither of which is on
-# the base image — without these the app dies on `import cv2` with an
-# ImportError that says nothing about the real cause.
-libgl1
-libglib2.0-0
-# MediaPipe's native library links against the OpenGL ES runtime.
-# Listed here even though mediapipe isn't in requirements.txt, so that
-# moving the optional ML dependencies into a deployment doesn't fail
-# with a bare "libGLESv2.so.2: cannot open shared object file".
-libegl1
-libgles2
-# OpenCV's wheels can write MPEG-4 but not H.264, and browsers only
-# play the latter. ffmpeg is what lets the processed video show up in
-# the page instead of only as a download.
+# The app itself needs none of these: requirements.txt asks for
+# opencv-python-headless, which links against no GUI libraries at all.
+# ffmpeg is here for the video stage — OpenCV's wheels can write MPEG-4
+# but not H.264, and browsers only play the latter, so without it the
+# processed clip is download-only instead of playing inline.
 ffmpeg
+#
+# If you move the optional ML dependencies into this deployment, add
+# these four back: mediapipe depends on opencv-contrib-python (the GUI
+# build, which wants libGL and glib) and its own native library needs
+# the OpenGL ES runtime, without which it fails at the first model with
+# "libGLESv2.so.2: cannot open shared object file".
+#
+# libgl1
+# libglib2.0-0
+# libegl1
+# libgles2
