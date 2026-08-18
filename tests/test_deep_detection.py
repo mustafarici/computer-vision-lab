@@ -18,6 +18,7 @@ from modules.deep_detection import (
     YOLO_MODELS,
     _as_rgb,
     _class_color,
+    _native_library_error,
     apply_mediapipe_landmarks,
     apply_yolo_detection,
     download_model,
@@ -163,6 +164,69 @@ def test_mediapipe_stage_explains_how_to_install_when_missing(
 
 STAGE_YOLO = stages.STAGES["YOLO Object Detection"]
 STAGE_MEDIAPIPE = stages.STAGES["MediaPipe Landmarks"]
+
+
+# ==================================================
+# MISSING SYSTEM LIBRARIES
+# ==================================================
+#
+# Installing mediapipe with pip succeeds on a machine that has no
+# OpenGL ES runtime; the failure appears much later as a bare OSError
+# out of ctypes when the first model is created. OSError is not an
+# ImportError and not a RuntimeError, so without this handling one
+# missing .so takes the entire app down instead of one stage.
+
+
+def test_native_library_error_is_catchable_as_a_runtime_error():
+    error = _native_library_error(
+        "mediapipe", OSError("libGLESv2.so.2: cannot open shared object file")
+    )
+
+    # This is what makes the stage handlers' except clause catch it.
+    assert isinstance(error, RuntimeError)
+
+
+def test_native_library_error_names_the_actual_fix():
+    error = _native_library_error("mediapipe", OSError("libGLESv2.so.2"))
+
+    message = str(error)
+
+    assert "libgles2" in message
+    assert "system library" in message
+    # The original error is kept, so the message isn't just advice.
+    assert "libGLESv2.so.2" in message
+
+
+@pytest.mark.parametrize(
+    "stage,function_name",
+    [
+        (STAGE_MEDIAPIPE, "apply_mediapipe_landmarks"),
+        (STAGE_YOLO, "apply_yolo_detection"),
+    ],
+)
+def test_a_missing_system_library_degrades_to_a_message(
+    monkeypatch, color_image, stage, function_name
+):
+    """The stage explains itself; it does not bring the page down."""
+
+    def explode(*args, **kwargs):
+        raise _native_library_error("mediapipe", OSError("libGLESv2.so.2"))
+
+    monkeypatch.setattr(stages, "is_yolo_available", lambda: True)
+    monkeypatch.setattr(stages, "is_mediapipe_available", lambda: True)
+    monkeypatch.setattr(stages, function_name, explode)
+
+    params = {
+        "yolo_model": next(iter(YOLO_MODELS)),
+        "yolo_confidence": 0.25,
+        "yolo_iou": 0.45,
+        "mediapipe_task": next(iter(MEDIAPIPE_TASKS)),
+    }
+
+    result = stage.handler(color_image, None, params)
+
+    assert result.image is None
+    assert "libgles2" in result.extra_info
 
 
 # ==================================================

@@ -76,10 +76,15 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install OpenCV system libraries
+      # Same as the core job, plus the OpenGL ES runtime. MediaPipe's
+      # native library links against libGLESv2, which the runners don't
+      # have — `pip install mediapipe` succeeds anyway and the failure
+      # only appears as an OSError from ctypes when the first model is
+      # created.
+      - name: Install OpenCV and MediaPipe system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1
+          sudo apt-get install -y libgl1 libegl1 libgles2
           sudo apt-get install -y libglib2.0-0t64 \
             || sudo apt-get install -y libglib2.0-0
 

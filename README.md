@@ -143,11 +143,11 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-560 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, video framing and encoding, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
+564 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, video framing and encoding, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
 
 The pipeline builder is tested over **every ordered pair of operations**, because "does this chain work" is a question about combinations, not about individual functions — an operation that quietly rejects a 3-channel array is only wrong in the orderings that hand it one.
 
-A few tests assert about the *installed environment* rather than about this code, because the most expensive bug in this project's history was a dependency quietly resolving to OpenCV 5 — which removed `cv2.CascadeClassifier` and broke every Haar Cascade stage. `import cv2` succeeds either way, so it has to be asserted about the API.
+A few tests assert about the *installed environment* rather than about this code, because the two most expensive bugs in this project's history were both of that shape: a dependency quietly resolving to OpenCV 5 (which removed `cv2.CascadeClassifier`), and MediaPipe installing cleanly on a machine with no OpenGL ES runtime, then failing hundreds of lines deep with `libGLESv2.so.2: cannot open shared object file`. Neither is visible to an import check, and the second one used to take the whole page down rather than one stage — now it reports which system package is missing.
 
 CI runs three jobs on every push:
 
@@ -213,7 +213,7 @@ you build, in whatever order you build it.)
 The repository is ready for [Streamlit Community Cloud](https://share.streamlit.io) as-is:
 
 - `requirements.txt` pins every dependency below its next major release
-- `packages.txt` installs the apt packages OpenCV and the video encoder need (`libgl1`, `libglib2.0-0`, `ffmpeg`)
+- `packages.txt` installs the apt packages OpenCV, MediaPipe and the video encoder need (`libgl1`, `libglib2.0-0`, `libegl1`, `libgles2`, `ffmpeg`)
 - `.streamlit/config.toml` gives the deployed app the same theme as the local one
 
 Point Streamlit Cloud at this repository with `app.py` as the entry point. The optional ML dependencies are deliberately left out of `requirements.txt`, so the deployed app starts fast and the two deep-learning stages show their install hint; move them across if you want YOLO in the hosted version too.

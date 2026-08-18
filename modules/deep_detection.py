@@ -40,6 +40,32 @@ class MissingDependencyError(RuntimeError):
     """Raised when a stage needs an optional package that isn't installed."""
 
 
+def _native_library_error(package: str, error: Exception) -> MissingDependencyError:
+    """
+    Turn a failed native load into an explanation.
+
+    `pip install mediapipe` succeeds on a machine with no OpenGL
+    runtime; the failure only surfaces later, as a bare
+    `OSError: libGLESv2.so.2: cannot open shared object file` from deep
+    inside ctypes, when the first landmark model is created. That is an
+    OSError rather than an ImportError, so nothing above catches it and
+    a missing system package takes the whole page down instead of one
+    stage.
+
+    Raising it as a MissingDependencyError (a RuntimeError) puts it back
+    on the path the stage handlers already handle, with a message that
+    names the actual fix.
+    """
+
+    return MissingDependencyError(
+        f"'{package}' is installed, but its native libraries couldn't be "
+        f"loaded: {error}. This is a missing system library rather than a "
+        "missing Python package — on Debian/Ubuntu, install `libgl1`, "
+        "`libglib2.0-0`, `libegl1` and `libgles2` (the same list as "
+        "packages.txt)."
+    )
+
+
 # ==================================================
 # YOLO (ultralytics)
 # ==================================================
@@ -75,9 +101,13 @@ def load_yolo_model(weights: str):
             "Install it with: pip install -r requirements-ml.txt"
         )
 
-    from ultralytics import YOLO
+    try:
+        from ultralytics import YOLO
 
-    return YOLO(weights)
+        return YOLO(weights)
+
+    except OSError as error:
+        raise _native_library_error("ultralytics", error) from error
 
 
 def _class_color(class_id: int) -> tuple:
@@ -287,8 +317,12 @@ def load_mediapipe_landmarker(task_name: str):
 
     spec = MEDIAPIPE_TASKS[task_name]
 
-    from mediapipe.tasks import python as mp_python
-    from mediapipe.tasks.python import vision
+    try:
+        from mediapipe.tasks import python as mp_python
+        from mediapipe.tasks.python import vision
+
+    except OSError as error:
+        raise _native_library_error("mediapipe", error) from error
 
     model_path = download_model(
         spec["url"], MODELS_DIR / spec["filename"]
@@ -302,7 +336,11 @@ def load_mediapipe_landmarker(task_name: str):
         running_mode=vision.RunningMode.IMAGE,
     )
 
-    return task_class.create_from_options(options)
+    try:
+        return task_class.create_from_options(options)
+
+    except OSError as error:
+        raise _native_library_error("mediapipe", error) from error
 
 
 def _connection_edges(connections_name: str):
@@ -358,7 +396,11 @@ def apply_mediapipe_landmarks(image_np: np.ndarray, task_name: str):
     spec = MEDIAPIPE_TASKS[task_name]
     landmarker = load_mediapipe_landmarker(task_name)
 
-    import mediapipe as mp
+    try:
+        import mediapipe as mp
+
+    except OSError as error:
+        raise _native_library_error("mediapipe", error) from error
 
     rgb = _as_rgb(image_np)
 
