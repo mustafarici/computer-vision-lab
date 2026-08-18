@@ -1,19 +1,1 @@
-# apt packages installed by Streamlit Community Cloud before pip runs.
-#
-# The app itself needs none of these: requirements.txt asks for
-# opencv-python-headless, which links against no GUI libraries at all.
-# ffmpeg is here for the video stage — OpenCV's wheels can write MPEG-4
-# but not H.264, and browsers only play the latter, so without it the
-# processed clip is download-only instead of playing inline.
 ffmpeg
-#
-# If you move the optional ML dependencies into this deployment, add
-# these four back: mediapipe depends on opencv-contrib-python (the GUI
-# build, which wants libGL and glib) and its own native library needs
-# the OpenGL ES runtime, without which it fails at the first model with
-# "libGLESv2.so.2: cannot open shared object file".
-#
-# libgl1
-# libglib2.0-0
-# libegl1
-# libgles2
