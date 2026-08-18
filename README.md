@@ -7,10 +7,7 @@ An interactive computer vision and image processing laboratory built with **Pyth
 
 33 processing stages, from a grayscale conversion up to a neural network detecting 80 object classes, each with its own controls and a short explanation of what it does and why. Feed it a photo, a webcam snapshot, or a video clip.
 
-<!-- Once deployed to Streamlit Community Cloud (see "Deploying" below),
-     replace this comment with:
-     **▶️ [Try it live](https://computer-vision-lab.streamlit.app/)** -->
-
+**▶️ [Try it live](https://computer-vision-lab.streamlit.app/)**
 ![The app with an image loaded](assets/screenshot-app.jpg)
 
 ---
