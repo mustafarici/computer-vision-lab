@@ -12,7 +12,7 @@
 # and GTK. Dropping it means no apt packages are needed to run the app
 # at all — which also removes the CI step that has to reach an Ubuntu
 # mirror before a single test can run.
-streamlit>=1.61,<2
+streamlit>=1.61.1,<2
 pillow>=12.2,<13
 opencv-python-headless>=4.13,<5
 numpy>=2.4,<3
