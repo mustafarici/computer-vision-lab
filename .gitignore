@@ -27,3 +27,8 @@ results/*.jpg
 # Downloaded ML model weights (fetched on first use)
 models/
 *.pt
+
+# Scratch folder for files that can't be deleted in place on some
+# mounted filesystems (stale git lock artifacts end up here). Never
+# part of the project.
+_to_delete/

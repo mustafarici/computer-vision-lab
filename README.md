@@ -143,9 +143,11 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-557 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, video framing and encoding, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
+560 tests covering the image operations themselves (threshold boundaries, morphology growing/shrinking the foreground, Otsu landing between two intensity clusters, bilateral filtering preserving an edge, contour area filtering, PNG round-trips), parameter validation, video framing and encoding, the sidebar schema, and every stage handler end-to-end. The sidebar is exercised through Streamlit's own `AppTest`, so a broken widget fails a test rather than only the running app.
 
 The pipeline builder is tested over **every ordered pair of operations**, because "does this chain work" is a question about combinations, not about individual functions — an operation that quietly rejects a 3-channel array is only wrong in the orderings that hand it one.
+
+A few tests assert about the *installed environment* rather than about this code, because the most expensive bug in this project's history was a dependency quietly resolving to OpenCV 5 — which removed `cv2.CascadeClassifier` and broke every Haar Cascade stage. `import cv2` succeeds either way, so it has to be asserted about the API.
 
 CI runs three jobs on every push:
 

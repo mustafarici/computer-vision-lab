@@ -86,11 +86,17 @@ jobs:
       # The default PyTorch wheels bundle CUDA and are several GB. The
       # runners have no GPU, so the CPU-only index gives the same test
       # coverage in a fraction of the download.
+      #
+      # It is a separate index rather than PyPI, so it is also a
+      # separate thing that can be down. Falling back to PyPI keeps an
+      # outage there from reading as "the ML stages are broken" — the
+      # job just gets slower.
       - name: Install PyTorch (CPU-only build)
         run: |
           python -m pip install --upgrade pip
           pip install torch torchvision \
-            --index-url https://download.pytorch.org/whl/cpu
+            --index-url https://download.pytorch.org/whl/cpu \
+            || pip install torch torchvision
 
       - name: Install dependencies
         run: |
