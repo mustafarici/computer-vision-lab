@@ -242,7 +242,11 @@ The app is designed to be safe to deploy, which is a different bar from being sa
 The repository is ready for [Streamlit Community Cloud](https://share.streamlit.io) as-is:
 
 - `requirements.txt` pins every dependency below its next major release
-- `packages.txt` needs only `ffmpeg`, for the video stage. The app asks for `opencv-python-headless`, which links against no GUI libraries — a Streamlit app never opens a window, so the GUI half of OpenCV is dead weight that drags in libGL, glib and GTK. (The packages MediaPipe would need are listed there, commented out, for if you add the ML dependencies.)
+- `packages.txt` contains one line, `ffmpeg`, for the video stage. The app asks for `opencv-python-headless`, which links against no GUI libraries — a Streamlit app never opens a window, so the GUI half of OpenCV is dead weight that drags in libGL, glib and GTK.
+
+  Note that `packages.txt` takes **bare package names only**. Streamlit Cloud pipes the file straight into `apt-get install` through `xargs`, so a `#` comment isn't ignored — it becomes a list of imaginary packages and the deploy fails before any Python runs. `tests/test_packaging.py` enforces that.
+
+  If you move the optional ML dependencies into a deployment, add `libgl1`, `libglib2.0-0`, `libegl1` and `libgles2`: MediaPipe depends on `opencv-contrib-python` (the GUI build) and its native library needs the OpenGL ES runtime.
 - `.streamlit/config.toml` gives the deployed app the same theme as the local one
 
 Point Streamlit Cloud at this repository with `app.py` as the entry point. The optional ML dependencies are deliberately left out of `requirements.txt`, so the deployed app starts fast and the two deep-learning stages show their install hint; move them across if you want YOLO in the hosted version too.
