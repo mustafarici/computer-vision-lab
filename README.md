@@ -9,7 +9,7 @@ An interactive computer vision and image processing laboratory built with **Pyth
 
 <!-- Once deployed to Streamlit Community Cloud (see "Deploying" below),
      replace this comment with:
-     **▶️ [Try it live](https://your-app-name.streamlit.app)** -->
+     **▶️ [Try it live](https://computer-vision-lab.streamlit.app/)** -->
 
 ![The app with an image loaded](assets/screenshot-app.jpg)
 
